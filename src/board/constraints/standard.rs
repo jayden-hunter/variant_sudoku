@@ -1,24 +1,26 @@
+use std::rc::Rc;
+
 use crate::{
-    board::{digit::Digit, sudoku::Cell},
+    board::{
+        constraints::base::{combine_candidates, RcConstraint},
+        digit::Digit,
+        sudoku::Cell,
+    },
     Constraint, Sudoku,
 };
 
-struct RowUnique;
-struct ColUnique;
-struct BoxUnique;
+pub(crate) struct RowUnique;
+pub(crate) struct ColUnique;
+pub(crate) struct BoxUnique;
 
-struct Standard {
-    child_constraints: Vec<Box<dyn HouseUnique>>,
+pub(crate) struct Standard {
+    child_constraints: Vec<RcConstraint>,
 }
 
 impl Default for Standard {
     fn default() -> Self {
         Self {
-            child_constraints: vec![
-                Box::new(RowUnique),
-                Box::new(ColUnique),
-                Box::new(BoxUnique),
-            ],
+            child_constraints: vec![Rc::new(RowUnique), Rc::new(ColUnique), Rc::new(BoxUnique)],
         }
     }
 }
@@ -31,14 +33,7 @@ impl Constraint for Standard {
     }
 
     fn get_cell_candidates(&self, sudoku: &Sudoku, row: usize, col: usize) -> Vec<Digit> {
-        self.child_constraints
-            .iter()
-            .map(|constraint| constraint.get_cell_candidates(sudoku, row, col))
-            .fold(None, |acc: Option<Vec<Digit>>, x| match acc {
-                Some(acc) => Some(acc.into_iter().filter(|d| x.contains(d)).collect()),
-                None => Some(x),
-            })
-            .unwrap_or_else(Vec::new)
+        combine_candidates(&self.child_constraints, sudoku, row, col)
     }
 }
 

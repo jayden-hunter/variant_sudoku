@@ -1,7 +1,16 @@
+use std::rc::Rc;
+
 use grid::Grid;
 use serde::Deserialize;
 
-use crate::{board::digit::Digit, Sudoku};
+use crate::{
+    board::{
+        constraints::{self, base::RcConstraint},
+        digit::Digit,
+        sudoku::Cell,
+    },
+    Sudoku, SudokuError,
+};
 
 #[derive(Deserialize)]
 struct SudokuHelper {
@@ -22,23 +31,23 @@ enum YamlConstraint {
     BlackKropki {
         #[serde(default)]
         variant: Option<String>,
-        cells: Vec<[(usize, usize); 2]>,
+        cells: Vec<[Cell; 2]>,
     },
     #[serde(rename = "white_kropki")]
     WhiteKropki {
         #[serde(default)]
         variant: Option<String>,
-        cells: Vec<[(usize, usize); 2]>,
+        cells: Vec<[Cell; 2]>,
     },
 }
 
 #[derive(Debug, Deserialize)]
 struct KillerCage {
-    cells: Vec<(usize, usize)>,
+    cells: Vec<Cell>,
     sum: u32,
 }
 
-impl<'a, 'de> serde::de::Deserialize<'de> for Sudoku {
+impl<'de> serde::de::Deserialize<'de> for Sudoku {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -50,10 +59,26 @@ impl<'a, 'de> serde::de::Deserialize<'de> for Sudoku {
             .flat_map(|row| row.chars().map(Digit::from).collect::<Vec<Digit>>())
             .collect();
         let grid = Grid::from_vec(board, 9);
-        let constraints = helper.constraints;
+        let constraints =
+            parse_constraints(helper.constraints).map_err(serde::de::Error::custom)?;
         Ok(Sudoku {
             board: grid,
-            constraints: vec![], // Replace with actual conversion from YamlConstraint to your constraints type
+            constraints,
         })
     }
+}
+
+fn parse_constraints(
+    yaml_constraints: Option<Vec<YamlConstraint>>,
+) -> Result<Vec<RcConstraint>, SudokuError> {
+    yaml_constraints
+        .unwrap_or(vec![YamlConstraint::Standard])
+        .into_iter()
+        .map(|constraint| match constraint {
+            YamlConstraint::Standard => {
+                Ok(Rc::new(constraints::standard::Standard::default()) as RcConstraint)
+            }
+            e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
+        })
+        .collect()
 }

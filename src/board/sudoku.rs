@@ -1,7 +1,11 @@
 use grid::Grid;
 
-use crate::{board::digit::Digit, errors::SudokuError, Constraint};
-use std::fmt;
+use crate::{
+    board::{constraints::base::RcConstraint, digit::Digit},
+    errors::SudokuError,
+    Constraint,
+};
+use std::{fmt, rc::Rc};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 struct RowIndex(usize);
@@ -11,14 +15,37 @@ struct ColIndex(usize);
 
 pub type Cell = (usize, usize);
 
+#[derive(Clone)]
 pub struct Sudoku {
     pub board: Grid<Digit>,
-    pub(crate) constraints: Vec<Box<dyn Constraint>>,
+    pub(crate) constraints: Vec<RcConstraint>,
 }
 
 impl Sudoku {
     pub fn solve(&self) -> Sudoku {
-        unimplemented!()
+        // For each cell in the grid, see if there is the cell has only one candidate.
+        let mut next_board = self.board.clone();
+        for ((row, col), digit) in self.board.indexed_iter() {
+            if digit.get_number().is_none() {
+                // Get candidates for the cell
+                let candidates = self
+                    .constraints
+                    .iter()
+                    .flat_map(|constraint| constraint.get_cell_candidates(&self, row, col))
+                    .collect::<Vec<Digit>>();
+
+                // If there is only one candidate, set it
+                if candidates.len() == 1 {
+                    *next_board.get_mut(row, col).unwrap() = candidates[0];
+                    let next_sudoku_state = Sudoku {
+                        board: next_board,
+                        constraints: self.constraints.clone(),
+                    };
+                    return next_sudoku_state.solve();
+                }
+            }
+        }
+        self.clone()
     }
 
     pub fn get_cell(&self, row: usize, col: usize) -> Result<&Digit, SudokuError> {
@@ -53,6 +80,7 @@ impl fmt::Display for Sudoku {
             }
             writeln!(f)?;
         }
+        writeln!(f, "Constraints: {}", self.constraints.len())?;
         Ok(())
     }
 }
