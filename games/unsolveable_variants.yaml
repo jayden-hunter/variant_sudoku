@@ -1,0 +1,33 @@
+---
+board: |
+  __3_2_6__
+  9__3_5__1
+  __18_64__
+  __81_29__
+  7_______8
+  __67_82__
+  __26_95__
+  8__2_3__9
+  __5_1_3__
+
+constraints:
+  - name: standard
+  - name: killer
+    cages:
+    - cells: [(0, 0), (0, 1), (0, 2)]
+      sum: 11
+    - cells: [(1, 0), (1, 1), (1, 2)]
+      sum: 17
+  - name: diagonal
+    variant: positive
+    variant: negative
+  - name: black_kropki
+    variant: full
+    cells:
+    - [(0, 0), (1, 0)]
+    - [(0, 1), (0, 2)]
+  - name: white_kropki
+    cells:
+    - [(0, 0), (1, 0)]
+    - [(0, 1), (0, 2)]
+  

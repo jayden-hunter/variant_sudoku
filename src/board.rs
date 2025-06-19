@@ -1,2 +1,4 @@
+pub mod constraints;
 mod digit;
-mod sudoku;
+mod parsing;
+pub mod sudoku;
