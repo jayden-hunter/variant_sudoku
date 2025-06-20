@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     board::{
         constraints::{combine_candidates, RcConstraint},
-        digit::{CellData, Digit},
+        digit::{Digit, Symbol},
         sudoku::Cell,
     },
     errors::SudokuError,
@@ -33,7 +33,11 @@ impl Constraint for Standard {
             .all(|constraint| constraint.is_satisfied(sudoku))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Result<Vec<Digit>, SudokuError> {
+    fn get_cell_candidates(
+        &self,
+        sudoku: &Sudoku,
+        cell: &Cell,
+    ) -> Result<Vec<Symbol>, SudokuError> {
         combine_candidates(&self.child_constraints, sudoku, cell)
     }
 }
@@ -45,7 +49,7 @@ pub trait HouseUnique {
     fn is_house_satisfied(&self, sudoku: &Sudoku, house: &House) -> bool {
         let mut seen_digits = vec![];
         for cell in house {
-            if let CellData::Digit(d) = sudoku.get_cell(cell).unwrap() {
+            if let Digit::Symbol(d) = sudoku.get_cell(cell).unwrap() {
                 if seen_digits.contains(&d) {
                     return false; // Duplicate found
                 }
@@ -63,14 +67,18 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
             .all(|house| self.is_house_satisfied(sudoku, house))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Result<Vec<Digit>, SudokuError> {
+    fn get_cell_candidates(
+        &self,
+        sudoku: &Sudoku,
+        cell: &Cell,
+    ) -> Result<Vec<Symbol>, SudokuError> {
         let houses = self.get_houses(sudoku);
-        let mut candidates = (1..=9).map(|d| Digit(d.into())).collect::<Vec<_>>();
+        let mut candidates = (1..=9).map(|d| Symbol(d.into())).collect::<Vec<_>>();
 
         for house in &houses {
             if house.contains(cell) {
                 for house_cell in house {
-                    if let CellData::Digit(digit) = sudoku.get_cell(house_cell).unwrap() {
+                    if let Digit::Symbol(digit) = sudoku.get_cell(house_cell).unwrap() {
                         candidates.retain(|&d| d != *digit);
                     }
                 }

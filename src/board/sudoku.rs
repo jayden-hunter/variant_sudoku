@@ -3,7 +3,7 @@ use grid::Grid;
 use crate::{
     board::{
         constraints::RcConstraint,
-        digit::{CellData, Digit},
+        digit::{Digit, Symbol},
         solution::{Solution, SolutionString},
         solver::ALL_STRATEGIES,
     },
@@ -22,38 +22,38 @@ pub(crate) struct Cell {
 
 #[derive(Clone)]
 pub struct Sudoku {
-    pub(crate) board: Grid<CellData>,
+    pub(crate) board: Grid<Digit>,
     pub(crate) constraints: Vec<RcConstraint>,
 }
 
 impl Sudoku {
     pub fn solve(&self) -> Solution {
-        if self.board.iter().all(|c| !matches!(c, CellData::Digit(_))) {
+        if self.board.iter().all(|c| !matches!(c, Digit::Symbol(_))) {
             return Solution::UniqueSolution(self.clone());
         }
         for (strategy, _difficulty) in ALL_STRATEGIES {
-            if let Some((cell, digit)) = strategy(self) {
+            if let Some((cell, s)) = strategy(self) {
                 let mut next_board = self.clone();
-                *next_board.get_cell_mut(&cell).unwrap() = CellData::Digit(digit);
+                *next_board.get_cell_mut(&cell).unwrap() = Digit::Symbol(s);
                 return next_board.solve();
             }
         }
         Solution::NoSolution
     }
 
-    pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&CellData, SudokuError> {
+    pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
         self.board
             .get(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
-    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut CellData, SudokuError> {
+    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
         self.board
             .get_mut(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
-    pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &CellData)> {
+    pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &Digit)> {
         self.board.indexed_iter().map(|(cell, digit)| {
             (
                 Cell {
@@ -70,8 +70,8 @@ impl Sudoku {
             self.board
                 .iter()
                 .map(|d| match d {
-                    CellData::Digit(d) => d.0,
-                    CellData::Candidates(_) => '.',
+                    Digit::Symbol(s) => s.0,
+                    Digit::Candidates(_) => '.',
                 })
                 .collect(),
         )

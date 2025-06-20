@@ -1,9 +1,9 @@
 use crate::{
-    board::{constraints::combine_candidates, digit::Digit, sudoku::Cell},
+    board::{constraints::combine_candidates, digit::Symbol, sudoku::Cell},
     Sudoku,
 };
 
-pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Digit)> {
+pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
     for (cell, _) in sudoku.indexed_iter() {
         // Get candidates for the cell
         let candidates = combine_candidates(&sudoku.constraints, sudoku, &cell).unwrap();

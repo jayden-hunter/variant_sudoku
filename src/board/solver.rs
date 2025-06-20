@@ -1,10 +1,10 @@
 use crate::{
-    board::{digit::Digit, sudoku::Cell},
+    board::{digit::Symbol, sudoku::Cell},
     Sudoku,
 };
 mod brute_force;
 mod easy;
-type SolverStrategy = fn(sudoku: &Sudoku) -> Option<(Cell, Digit)>;
+type SolverStrategy = fn(sudoku: &Sudoku) -> Option<(Cell, Symbol)>;
 
 type StrategyData = (SolverStrategy, &'static str);
 
