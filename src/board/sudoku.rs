@@ -3,7 +3,7 @@ use grid::Grid;
 use crate::{
     board::{
         constraints::RcConstraint,
-        digit::Digit,
+        digit::{CellData, Digit},
         solution::{Solution, SolutionString},
         solver::ALL_STRATEGIES,
     },
@@ -22,38 +22,38 @@ pub(crate) struct Cell {
 
 #[derive(Clone)]
 pub struct Sudoku {
-    pub(crate) board: Grid<Digit>,
+    pub(crate) board: Grid<CellData>,
     pub(crate) constraints: Vec<RcConstraint>,
 }
 
 impl Sudoku {
     pub fn solve(&self) -> Solution {
-        if self.board.iter().all(|d| !matches!(d, Digit::Blank)) {
+        if self.board.iter().all(|c| !matches!(c, CellData::Digit(_))) {
             return Solution::UniqueSolution(self.clone());
         }
         for (strategy, _difficulty) in ALL_STRATEGIES {
             if let Some((cell, digit)) = strategy(self) {
                 let mut next_board = self.clone();
-                *next_board.get_cell_mut(&cell).unwrap() = digit;
+                *next_board.get_cell_mut(&cell).unwrap() = CellData::Digit(digit);
                 return next_board.solve();
             }
         }
         Solution::NoSolution
     }
 
-    pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
+    pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&CellData, SudokuError> {
         self.board
             .get(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
-    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
+    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut CellData, SudokuError> {
         self.board
             .get_mut(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
-    pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &Digit)> {
+    pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &CellData)> {
         self.board.indexed_iter().map(|(cell, digit)| {
             (
                 Cell {
@@ -69,9 +69,11 @@ impl Sudoku {
         SolutionString(
             self.board
                 .iter()
-                .map(Digit::to_string)
-                .collect::<Vec<String>>()
-                .join(""),
+                .map(|d| match d {
+                    CellData::Digit(d) => d.0,
+                    CellData::Candidates(_) => '.',
+                })
+                .collect(),
         )
     }
 }

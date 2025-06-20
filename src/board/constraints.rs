@@ -3,7 +3,10 @@ pub(crate) mod standard;
 use std::rc::Rc;
 
 use crate::{
-    board::{digit::Digit, sudoku::Cell},
+    board::{
+        digit::{CellData, Digit},
+        sudoku::Cell,
+    },
     errors::SudokuError,
     Sudoku,
 };
@@ -21,7 +24,7 @@ pub(crate) fn combine_candidates(
     sudoku: &Sudoku,
     cell: &Cell,
 ) -> Result<Vec<Digit>, SudokuError> {
-    if !matches!(sudoku.get_cell(cell)?, Digit::Blank) {
+    if matches!(sudoku.get_cell(cell)?, CellData::Digit(_)) {
         return Ok(vec![]);
     }
     constraints

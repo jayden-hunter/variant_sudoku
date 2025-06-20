@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     board::{
         constraints::{self, RcConstraint},
-        digit::Digit,
+        digit::{CellData, Digit},
         sudoku::Cell,
     },
     Sudoku, SudokuError,
@@ -55,10 +55,31 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
         D: serde::Deserializer<'de>,
     {
         let helper = SudokuHelper::deserialize(deserializer)?;
-        let board: Vec<Digit> = helper
+        let valid_digits = [
+            Digit('1'),
+            Digit('2'),
+            Digit('3'),
+            Digit('4'),
+            Digit('5'),
+            Digit('6'),
+            Digit('7'),
+            Digit('8'),
+            Digit('9'),
+        ];
+        let board: Vec<CellData> = helper
             .board
             .lines()
-            .flat_map(|row| row.chars().map(Digit::from).collect::<Vec<Digit>>())
+            .flat_map(|row| {
+                row.chars()
+                    .map(|d| {
+                        if d.is_ascii_alphanumeric() {
+                            CellData::Digit(Digit(d))
+                        } else {
+                            CellData::Candidates(valid_digits.to_vec())
+                        }
+                    })
+                    .collect::<Vec<CellData>>()
+            })
             .collect();
         let grid = Grid::from_vec(board, 9);
         let constraints =

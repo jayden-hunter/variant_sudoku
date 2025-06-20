@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     board::{
         constraints::{combine_candidates, RcConstraint},
-        digit::Digit,
+        digit::{CellData, Digit},
         sudoku::Cell,
     },
     errors::SudokuError,
@@ -45,11 +45,11 @@ pub trait HouseUnique {
     fn is_house_satisfied(&self, sudoku: &Sudoku, house: &House) -> bool {
         let mut seen_digits = vec![];
         for cell in house {
-            if let Some(digit) = sudoku.get_cell(cell).unwrap().get_number() {
-                if seen_digits.contains(&digit) {
+            if let CellData::Digit(d) = sudoku.get_cell(cell).unwrap() {
+                if seen_digits.contains(&d) {
                     return false; // Duplicate found
                 }
-                seen_digits.push(digit);
+                seen_digits.push(d);
             }
         }
         true // All cells in the house are unique
@@ -65,13 +65,13 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
 
     fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Result<Vec<Digit>, SudokuError> {
         let houses = self.get_houses(sudoku);
-        let mut candidates = (1..=9).map(Digit::Number).collect::<Vec<_>>();
+        let mut candidates = (1..=9).map(|d| Digit(d.into())).collect::<Vec<_>>();
 
         for house in &houses {
             if house.contains(cell) {
                 for house_cell in house {
-                    if let Some(digit) = sudoku.get_cell(house_cell).unwrap().get_number() {
-                        candidates.retain(|&d| d != Digit::Number(digit));
+                    if let CellData::Digit(digit) = sudoku.get_cell(house_cell).unwrap() {
+                        candidates.retain(|&d| d != *digit);
                     }
                 }
                 break; // Only need to check the house containing the cell
