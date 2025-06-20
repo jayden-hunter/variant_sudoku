@@ -2,8 +2,8 @@ use grid::Grid;
 
 use crate::{
     board::{
-        constraints::RcConstraint,
-        digit::Digit,
+        constraints::{self, RcConstraint},
+        digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
         solver::ALL_STRATEGIES,
     },
@@ -27,9 +27,15 @@ pub struct Sudoku {
 }
 
 impl Sudoku {
-    pub fn solve(&self) -> Solution {
-        if self.board.iter().all(|c| !matches!(c, Digit::Symbol(_))) {
+    pub fn solve(&mut self) -> Solution {
+        if self.board.iter().all(|c| matches!(c, Digit::Symbol(_))) {
             return Solution::UniqueSolution(self.clone());
+        }
+        for constraint in self.constraints.clone() {
+            let cells: Vec<_> = self.indexed_iter().map(|(cell, _)| cell).collect();
+            for cell in cells {
+                constraint.filter_cell_candidates(self, &cell).unwrap();
+            }
         }
         for (strategy, _difficulty) in ALL_STRATEGIES {
             if let Some((cell, s)) = strategy(self) {
@@ -65,6 +71,24 @@ impl Sudoku {
         })
     }
 
+    pub(crate) fn indexed_candidate_iter(&self) -> impl Iterator<Item = (Cell, &Candidates)> {
+        self.board
+            .indexed_iter()
+            .map(|(cell, digit)| {
+                (
+                    Cell {
+                        row: cell.0,
+                        col: cell.1,
+                    },
+                    digit,
+                )
+            })
+            .filter_map(|(c, d)| match d {
+                Digit::Symbol(_) => None,
+                Digit::Candidates(symbols) => Some((c, symbols)),
+            })
+    }
+
     pub fn to_string_line(&self) -> SolutionString {
         SolutionString(
             self.board
@@ -75,6 +99,20 @@ impl Sudoku {
                 })
                 .collect(),
         )
+    }
+
+    pub(crate) fn valid_symbols() -> Candidates {
+        vec![
+            Symbol('1'),
+            Symbol('2'),
+            Symbol('3'),
+            Symbol('4'),
+            Symbol('5'),
+            Symbol('6'),
+            Symbol('7'),
+            Symbol('8'),
+            Symbol('9'),
+        ]
     }
 }
 

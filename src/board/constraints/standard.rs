@@ -27,17 +27,7 @@ impl Default for Standard {
 }
 
 impl Constraint for Standard {
-    fn is_satisfied(&self, sudoku: &Sudoku) -> bool {
-        self.child_constraints
-            .iter()
-            .all(|constraint| constraint.is_satisfied(sudoku))
-    }
-
-    fn get_cell_candidates(
-        &self,
-        sudoku: &Sudoku,
-        cell: &Cell,
-    ) -> Result<Vec<Symbol>, SudokuError> {
+    fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
         combine_candidates(&self.child_constraints, sudoku, cell)
     }
 }
@@ -46,46 +36,45 @@ type House = Vec<Cell>;
 pub trait HouseUnique {
     fn get_houses(&self, sudoku: &Sudoku) -> Vec<House>;
 
-    fn is_house_satisfied(&self, sudoku: &Sudoku, house: &House) -> bool {
-        let mut seen_digits = vec![];
-        for cell in house {
-            if let Digit::Symbol(d) = sudoku.get_cell(cell).unwrap() {
-                if seen_digits.contains(&d) {
-                    return false; // Duplicate found
-                }
-                seen_digits.push(d);
-            }
-        }
-        true // All cells in the house are unique
-    }
+    // fn is_house_satisfied(&self, sudoku: &Sudoku, house: &House) -> bool {
+    //     let mut seen_digits = vec![];
+    //     for cell in house {
+    //         if let Digit::Symbol(d) = sudoku.get_cell(cell).unwrap() {
+    //             if seen_digits.contains(&d) {
+    //                 return false; // Duplicate found
+    //             }
+    //             seen_digits.push(d);
+    //         }
+    //     }
+    //     true // All cells in the house are unique
+    // }
 }
 
 impl<T: ?Sized + HouseUnique> Constraint for T {
-    fn is_satisfied(&self, sudoku: &Sudoku) -> bool {
-        self.get_houses(sudoku)
-            .iter()
-            .all(|house| self.is_house_satisfied(sudoku, house))
-    }
+    // fn is_satisfied(&self, sudoku: &Sudoku) -> bool {
+    //     self.get_houses(sudoku)
+    //         .iter()
+    //         .all(|house| self.is_house_satisfied(sudoku, house))
+    // }
 
-    fn get_cell_candidates(
-        &self,
-        sudoku: &Sudoku,
-        cell: &Cell,
-    ) -> Result<Vec<Symbol>, SudokuError> {
+    fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
         let houses = self.get_houses(sudoku);
-        let mut candidates = (1..=9).map(|d| Symbol(d.into())).collect::<Vec<_>>();
-
+        let mut filtered_candidates = match sudoku.get_cell(cell)?.try_candidates() {
+            Some(v) => v.clone(),
+            None => return Ok(()),
+        };
         for house in &houses {
             if house.contains(cell) {
                 for house_cell in house {
                     if let Digit::Symbol(digit) = sudoku.get_cell(house_cell).unwrap() {
-                        candidates.retain(|&d| d != *digit);
+                        filtered_candidates.retain(|&d| d != *digit);
                     }
                 }
                 break; // Only need to check the house containing the cell
             }
         }
-        Ok(candidates)
+        *sudoku.get_cell_mut(cell)? = Digit::Candidates(filtered_candidates);
+        Ok(())
     }
 }
 

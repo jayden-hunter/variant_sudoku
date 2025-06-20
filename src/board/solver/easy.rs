@@ -1,16 +1,14 @@
 use crate::{
-    board::{constraints::combine_candidates, digit::Symbol, sudoku::Cell},
+    board::{digit::Symbol, sudoku::Cell},
     Sudoku,
 };
 
 pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
-    for (cell, _) in sudoku.indexed_iter() {
-        // Get candidates for the cell
-        let candidates = combine_candidates(&sudoku.constraints, sudoku, &cell).unwrap();
-
+    for (cell, candidates) in sudoku.indexed_candidate_iter() {
         // If there is only one candidate, set it
         if candidates.len() == 1 {
             let digit = candidates[0];
+            println!("{:?} solved by naked_single: {:?}", cell, digit);
             return Some((cell, digit));
         }
     }

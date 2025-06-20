@@ -1,9 +1,11 @@
 use std::fmt::Display;
 
+pub type Candidates = Vec<Symbol>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Digit {
     Symbol(Symbol),
-    Candidates(Vec<Symbol>),
+    Candidates(Candidates),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -26,6 +28,15 @@ impl Display for Digit {
         match self {
             Digit::Symbol(s) => s.fmt(f),
             Digit::Candidates(_) => write!(f, " "),
+        }
+    }
+}
+
+impl Digit {
+    pub(crate) fn try_candidates(&self) -> Option<&Candidates> {
+        match self {
+            Digit::Symbol(_) => None,
+            Digit::Candidates(symbols) => Some(symbols),
         }
     }
 }
