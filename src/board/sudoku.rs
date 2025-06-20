@@ -2,7 +2,7 @@ use grid::Grid;
 
 use crate::{
     board::{
-        constraints::{self, RcConstraint},
+        constraints::RcConstraint,
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
         solver::ALL_STRATEGIES,

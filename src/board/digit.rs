@@ -12,6 +12,7 @@ pub enum Digit {
 pub(crate) struct Symbol(pub(crate) char);
 
 impl Symbol {
+    #[allow(dead_code)]
     pub fn get_number(&self) -> Option<u8> {
         self.0.to_digit(10).map(|c| c as u8)
     }

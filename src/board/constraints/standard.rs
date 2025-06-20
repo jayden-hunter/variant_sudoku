@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::{
     board::{
         constraints::{combine_candidates, RcConstraint},
-        digit::{Digit, Symbol},
+        digit::Digit,
         sudoku::Cell,
     },
     errors::SudokuError,

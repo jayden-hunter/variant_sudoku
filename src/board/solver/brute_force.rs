@@ -3,6 +3,6 @@ use crate::{
     Sudoku,
 };
 
-pub(crate) fn brute_force(sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
+pub(crate) fn brute_force(_sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
     unimplemented!()
 }

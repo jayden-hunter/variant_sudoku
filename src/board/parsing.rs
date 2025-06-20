@@ -55,17 +55,7 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
         D: serde::Deserializer<'de>,
     {
         let helper = SudokuHelper::deserialize(deserializer)?;
-        let valid_digits = [
-            Symbol('1'),
-            Symbol('2'),
-            Symbol('3'),
-            Symbol('4'),
-            Symbol('5'),
-            Symbol('6'),
-            Symbol('7'),
-            Symbol('8'),
-            Symbol('9'),
-        ];
+        let valid_digits = Sudoku::valid_symbols();
         let board: Vec<Digit> = helper
             .board
             .lines()
