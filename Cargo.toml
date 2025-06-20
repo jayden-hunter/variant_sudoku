@@ -3,9 +3,20 @@ name = "variant_sudoku"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "variant_sudoku"
+path = "src/lib.rs"
+
+
+[[bin]]
+name = "variant_sudoku_bin"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
+env_logger = "0.11.8"
 grid = "0.18.0"
+log = "0.4.27"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 thiserror = "2.0.12"

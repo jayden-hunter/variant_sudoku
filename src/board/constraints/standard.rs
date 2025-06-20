@@ -1,3 +1,4 @@
+use log::{debug, trace};
 use std::rc::Rc;
 
 use crate::{
@@ -63,6 +64,8 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
             Some(v) => v.clone(),
             None => return Ok(()),
         };
+        let candidates_before = filtered_candidates.len();
+
         for house in &houses {
             if house.contains(cell) {
                 for house_cell in house {
@@ -73,7 +76,13 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
                 break; // Only need to check the house containing the cell
             }
         }
+        let candidates_after = filtered_candidates.len();
         *sudoku.get_cell_mut(cell)? = Digit::Candidates(filtered_candidates);
+        if candidates_before != candidates_after {
+            trace!(
+                "HouseUnique filtered {candidates_before} down to {candidates_after} for {cell:?}."
+            );
+        }
         Ok(())
     }
 }

@@ -1,3 +1,5 @@
+use log::debug;
+
 use crate::{
     board::{digit::Symbol, sudoku::Cell},
     Sudoku,
@@ -8,7 +10,7 @@ pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
         // If there is only one candidate, set it
         if candidates.len() == 1 {
             let digit = candidates[0];
-            println!("{:?} solved by naked_single: {:?}", cell, digit);
+            debug!("{:?} solved by naked_single: {:?}", cell, digit);
             return Some((cell, digit));
         }
     }

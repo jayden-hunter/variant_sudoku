@@ -16,6 +16,11 @@ impl Symbol {
     pub fn get_number(&self) -> Option<u8> {
         self.0.to_digit(10).map(|c| c as u8)
     }
+
+    pub fn from_num(num: u8) -> Self {
+        let c = num as char;
+        Self(c)
+    }
 }
 
 impl Display for Symbol {
@@ -40,4 +45,17 @@ impl Digit {
             Digit::Candidates(symbols) => Some(symbols),
         }
     }
+}
+
+pub(crate) fn intersect_candidates(c: Vec<&Candidates>) -> Candidates {
+    if c.is_empty() {
+        return Vec::new();
+    }
+
+    let first = c[0];
+    first
+        .iter()
+        .cloned()
+        .filter(|sym| c.iter().all(|cand| cand.contains(sym)))
+        .collect()
 }
