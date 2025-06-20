@@ -2,9 +2,10 @@ use grid::Grid;
 
 use crate::{
     board::{
-        constraints::base::RcConstraint,
+        constraints::RcConstraint,
         digit::Digit,
         solution::{Solution, SolutionString},
+        solver::ALL_STRATEGIES,
     },
     errors::SudokuError,
 };
@@ -27,34 +28,28 @@ pub struct Sudoku {
 
 impl Sudoku {
     pub fn solve(&self) -> Solution {
-        // For each cell in the grid, see if there is the cell has only one candidate.
-        let mut next_board = self.board.clone();
-        for (cell, digit) in self.indexed_iter() {
-            if digit.get_number().is_none() {
-                // Get candidates for the cell
-                let candidates = self
-                    .constraints
-                    .iter()
-                    .flat_map(|constraint| constraint.get_cell_candidates(self, &cell))
-                    .collect::<Vec<Digit>>();
-
-                // If there is only one candidate, set it
-                if candidates.len() == 1 {
-                    *next_board.get_mut(cell.row, cell.col).unwrap() = candidates[0];
-                    let next_sudoku_state = Sudoku {
-                        board: next_board,
-                        constraints: self.constraints.clone(),
-                    };
-                    return next_sudoku_state.solve();
-                }
+        if self.board.iter().all(|d| !matches!(d, Digit::Blank)) {
+            return Solution::UniqueSolution(self.clone());
+        }
+        for (strategy, _difficulty) in ALL_STRATEGIES {
+            if let Some((cell, digit)) = strategy(self) {
+                let mut next_board = self.clone();
+                *next_board.get_cell_mut(&cell).unwrap() = digit;
+                return next_board.solve();
             }
         }
-        Solution::UniqueSolution(self.clone())
+        Solution::NoSolution
     }
 
     pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
         self.board
             .get(cell.row, cell.col)
+            .ok_or(SudokuError::OutOfBoundsAccess(*cell))
+    }
+
+    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
+        self.board
+            .get_mut(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 

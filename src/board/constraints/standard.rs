@@ -2,10 +2,11 @@ use std::rc::Rc;
 
 use crate::{
     board::{
-        constraints::base::{combine_candidates, RcConstraint},
+        constraints::{combine_candidates, RcConstraint},
         digit::Digit,
         sudoku::Cell,
     },
+    errors::SudokuError,
     Constraint, Sudoku,
 };
 
@@ -32,7 +33,7 @@ impl Constraint for Standard {
             .all(|constraint| constraint.is_satisfied(sudoku))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Vec<Digit> {
+    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Result<Vec<Digit>, SudokuError> {
         combine_candidates(&self.child_constraints, sudoku, cell)
     }
 }
@@ -62,7 +63,7 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
             .all(|house| self.is_house_satisfied(sudoku, house))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Vec<Digit> {
+    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Result<Vec<Digit>, SudokuError> {
         let houses = self.get_houses(sudoku);
         let mut candidates = (1..=9).map(Digit::Number).collect::<Vec<_>>();
 
@@ -76,7 +77,7 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
                 break; // Only need to check the house containing the cell
             }
         }
-        candidates
+        Ok(candidates)
     }
 }
 

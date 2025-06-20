@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     board::{
-        constraints::{self, base::RcConstraint},
+        constraints::{self, RcConstraint},
         digit::Digit,
         sudoku::Cell,
     },
