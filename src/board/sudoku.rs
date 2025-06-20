@@ -3,7 +3,7 @@ use grid::Grid;
 use crate::{
     board::{
         constraints::RcConstraint,
-        digit::{Digit, Symbol},
+        digit::Digit,
         solution::{Solution, SolutionString},
         solver::ALL_STRATEGIES,
     },

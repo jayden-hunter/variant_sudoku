@@ -1,5 +1,5 @@
 use crate::{
-    board::{constraints::combine_candidates, digit::Symbol, sudoku::Cell},
+    board::{digit::Symbol, sudoku::Cell},
     Sudoku,
 };
 
