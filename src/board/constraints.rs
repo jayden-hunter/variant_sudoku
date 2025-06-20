@@ -34,5 +34,5 @@ pub(crate) fn combine_candidates(
                 None => Some(x),
             })
         })
-        .map(|opt| opt.unwrap_or_else(Vec::new))
+        .map(|opt| opt.unwrap_or_default())
 }

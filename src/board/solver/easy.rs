@@ -11,10 +11,8 @@ pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Digit)> {
         // If there is only one candidate, set it
         if candidates.len() == 1 {
             let digit = candidates[0];
-            println!("Naked Single found at cell {:?}, digit {}", cell, digit);
             return Some((cell, digit));
         }
     }
-    println!("Naked Single Strategy Failed.");
     None
 }

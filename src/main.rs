@@ -1,5 +1,5 @@
 use clap::Parser;
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, path::PathBuf, time};
 use variant_sudoku::Sudoku;
 
 #[derive(Parser)]
@@ -12,7 +12,13 @@ fn main() {
     let path = File::open(args.path).unwrap();
     let sudoku: Sudoku = serde_yaml::from_reader(path).unwrap();
     println!("Loaded:\n{}", sudoku);
+    let start_time = time::Instant::now();
     let solved = sudoku.solve();
-    println!("Solved Sudoku:\n{}", solved);
+    let end_time = time::Instant::now();
+    println!(
+        "Solved Sudoku:\n{}\nTook: {:.?}",
+        solved,
+        end_time - start_time
+    );
     println!("{:#}", solved)
 }
