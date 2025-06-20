@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use grid::Grid;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     board::{
@@ -20,13 +20,14 @@ struct SudokuHelper {
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "name")]
+#[allow(dead_code)]
 enum YamlConstraint {
     #[serde(rename = "standard")]
     Standard,
     #[serde(rename = "killer")]
     Killer { cages: Vec<KillerCage> },
     #[serde(rename = "diagonal")]
-    Diagonal { variant: String },
+    Diagonal { variants: Vec<String> },
     #[serde(rename = "black_kropki")]
     BlackKropki {
         #[serde(default)]
@@ -42,6 +43,7 @@ enum YamlConstraint {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct KillerCage {
     cells: Vec<Cell>,
     sum: u32,
@@ -68,6 +70,16 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
     }
 }
 
+impl<'de> serde::de::Deserialize<'de> for Cell {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (row, col) = <(usize, usize)>::deserialize(deserializer)?;
+        Ok(Cell { row, col })
+    }
+}
+
 fn parse_constraints(
     yaml_constraints: Option<Vec<YamlConstraint>>,
 ) -> Result<Vec<RcConstraint>, SudokuError> {
@@ -81,4 +93,20 @@ fn parse_constraints(
             e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
         })
         .collect()
+}
+
+impl Serialize for Sudoku {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(
+            &self
+                .board
+                .iter()
+                .map(|digit| digit.to_string())
+                .collect::<Vec<String>>()
+                .join(""),
+        )
+    }
 }

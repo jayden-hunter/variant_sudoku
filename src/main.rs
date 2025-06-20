@@ -14,4 +14,5 @@ fn main() {
     println!("Loaded:\n{}", sudoku);
     let solved = sudoku.solve();
     println!("Solved Sudoku:\n{}", solved);
+    println!("{:#}", solved)
 }

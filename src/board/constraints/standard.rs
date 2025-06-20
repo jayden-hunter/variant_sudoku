@@ -32,8 +32,8 @@ impl Constraint for Standard {
             .all(|constraint| constraint.is_satisfied(sudoku))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, row: usize, col: usize) -> Vec<Digit> {
-        combine_candidates(&self.child_constraints, sudoku, row, col)
+    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Vec<Digit> {
+        combine_candidates(&self.child_constraints, sudoku, cell)
     }
 }
 
@@ -43,8 +43,8 @@ pub trait HouseUnique {
 
     fn is_house_satisfied(&self, sudoku: &Sudoku, house: &House) -> bool {
         let mut seen_digits = vec![];
-        for &(r, c) in house {
-            if let Some(digit) = sudoku.get_cell(r, c).unwrap().get_number() {
+        for cell in house {
+            if let Some(digit) = sudoku.get_cell(cell).unwrap().get_number() {
                 if seen_digits.contains(&digit) {
                     return false; // Duplicate found
                 }
@@ -62,14 +62,14 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
             .all(|house| self.is_house_satisfied(sudoku, house))
     }
 
-    fn get_cell_candidates(&self, sudoku: &Sudoku, row: usize, col: usize) -> Vec<Digit> {
+    fn get_cell_candidates(&self, sudoku: &Sudoku, cell: &Cell) -> Vec<Digit> {
         let houses = self.get_houses(sudoku);
         let mut candidates = (1..=9).map(Digit::Number).collect::<Vec<_>>();
 
         for house in &houses {
-            if house.contains(&(row, col)) {
-                for &(r, c) in house {
-                    if let Some(digit) = sudoku.get_cell(r, c).unwrap().get_number() {
+            if house.contains(cell) {
+                for house_cell in house {
+                    if let Some(digit) = sudoku.get_cell(house_cell).unwrap().get_number() {
                         candidates.retain(|&d| d != Digit::Number(digit));
                     }
                 }
@@ -85,7 +85,7 @@ impl HouseUnique for RowUnique {
         let rows = sudoku.board.rows();
         let cols = sudoku.board.cols();
         (0..cols)
-            .map(|row| (0..rows).map(|col| (row, col)).collect())
+            .map(|row| (0..rows).map(|col| Cell { row, col }).collect())
             .collect()
     }
 }
@@ -95,17 +95,22 @@ impl HouseUnique for ColUnique {
         let rows = sudoku.board.rows();
         let cols = sudoku.board.cols();
         (0..rows)
-            .map(|col| (0..cols).map(|row| (row, col)).collect())
+            .map(|col| (0..cols).map(|row| Cell { row, col }).collect())
             .collect()
     }
 }
 impl HouseUnique for BoxUnique {
-    fn get_houses(&self, sudoku: &Sudoku) -> Vec<House> {
+    fn get_houses(&self, _sudoku: &Sudoku) -> Vec<House> {
         let mut houses = vec![];
         for box_row in 0..3 {
             for box_col in 0..3 {
                 let house: House = (0..3)
-                    .flat_map(|r| (0..3).map(move |c| (box_row * 3 + r, box_col * 3 + c)))
+                    .flat_map(|r| {
+                        (0..3).map(move |c| Cell {
+                            row: box_row * 3 + r,
+                            col: box_col * 3 + c,
+                        })
+                    })
                     .collect();
                 houses.push(house);
             }

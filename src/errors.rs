@@ -1,14 +1,10 @@
-use std::fmt;
+use crate::board::sudoku::Cell;
+use thiserror::Error;
 
-#[derive(Debug)]
-pub enum SudokuError {
-    OutOfBoundsAccess(usize, usize),
+#[derive(Error, Debug)]
+pub(crate) enum SudokuError {
+    #[error("Out of Bounds Access at cell {0:?}")]
+    OutOfBoundsAccess(Cell),
+    #[error("Constraint {0} not Supported by this library")]
     UnsupportedConstraint(String),
-}
-
-// Implement Display for SudokuError so it can be used with serde::de::Error::custom
-impl fmt::Display for SudokuError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
 }

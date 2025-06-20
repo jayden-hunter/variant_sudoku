@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum Digit {
+pub enum Digit {
     #[default]
     Blank,
     Number(u8),
