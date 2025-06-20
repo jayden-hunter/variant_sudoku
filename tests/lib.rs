@@ -3,7 +3,38 @@ use std::{fs::File, io::Read, path::PathBuf};
 use serde::Deserialize;
 use variant_sudoku::{Solution, Sudoku};
 
-fn test_game(game: Sudoku, expected_solution: Solution) {}
+fn test_game(game: Sudoku, expected_solution: Solution) {
+    let actual = game.solve();
+    match (actual, expected_solution) {
+        (Solution::UniqueSolution(actual_board), Solution::PreComputed(expected_board)) => {
+            assert_eq!(
+                actual_board.to_string_line(),
+                expected_board,
+                "Unique solutions differ"
+            );
+        }
+
+        (Solution::MultipleSolutions(actual_vec), Solution::PreComputed(expected_board)) => {
+            assert!(
+                actual_vec
+                    .iter()
+                    .any(|sudoku| sudoku.to_string_line() == expected_board),
+                "None of the multiple solutions match the expected solution"
+            );
+        }
+
+        (Solution::NoSolution, Solution::NoSolution) => {
+            // all good
+        }
+
+        (actual, expected) => {
+            panic!(
+                "Solution mismatch:\n  Expected: {:?}\n  Actual:   {:?}",
+                expected, actual
+            );
+        }
+    }
+}
 
 fn test_file(path: PathBuf) {
     #[derive(Deserialize)]
