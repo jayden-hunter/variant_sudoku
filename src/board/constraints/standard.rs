@@ -5,17 +5,21 @@ use crate::{
     board::{
         constraints::{combine_constraints, RcConstraint},
         digit::Digit,
+        solver::house::HOUSE_STRATEGIES,
         sudoku::Cell,
     },
     errors::SudokuError,
     Constraint, Sudoku,
 };
 
+pub(crate) type HouseSet = HashSet<House>;
+
+#[allow(dead_code)]
 pub(crate) enum HouseUnique {
-    RowUnique,
-    ColUnique,
-    BoxUnique,
-    CustomUnique(Vec<Cell>),
+    Row,
+    Col,
+    Box,
+    Custom(Vec<House>),
 }
 
 pub(crate) struct Standard {
@@ -26,9 +30,9 @@ impl Default for Standard {
     fn default() -> Self {
         Self {
             child_constraints: [
-                HouseUnique::RowUnique,
-                HouseUnique::ColUnique,
-                HouseUnique::BoxUnique,
+                Rc::new(HouseUnique::Row),
+                Rc::new(HouseUnique::Col),
+                Rc::new(HouseUnique::Box),
             ],
         }
     }
@@ -39,7 +43,8 @@ impl Constraint for Standard {
         combine_constraints(&self.child_constraints, sudoku, cell)
     }
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError> {
-        // Standard strategies of sudoku all rely on Houses, so we can just call the first
+        // Standard strategies of sudoku all rely on Houses, so we can just call the first and be done with it.
+        self.child_constraints[0].use_strategies(sudoku)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -47,15 +52,15 @@ impl Constraint for Standard {
     }
 }
 
-type House = Vec<Cell>;
+pub(crate) type House = Vec<Cell>;
 impl HouseUnique {
     fn get_houses(&self, sudoku: &Sudoku) -> Vec<House> {
-        let house = match self {
-            HouseUnique::RowUnique => get_row_houses(sudoku),
-            HouseUnique::ColUnique => get_col_houses(sudoku),
-            HouseUnique::BoxUnique => get_box_houses(sudoku),
-            HouseUnique::CustomUnique(cells) => cells,
-        };
+        match self {
+            HouseUnique::Row => get_row_houses(sudoku),
+            HouseUnique::Col => get_col_houses(sudoku),
+            HouseUnique::Box => get_box_houses(sudoku),
+            HouseUnique::Custom(cells) => cells.to_vec(),
+        }
     }
 }
 
@@ -89,15 +94,16 @@ impl Constraint for HouseUnique {
     }
 
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError> {
-        type Houses = HashSet<Vec<Cell>>;
         // Get all houses of the sudoku.
-        let houses: Houses = sudoku
+        let houses: HouseSet = sudoku
             .constraints
             .iter()
             .filter_map(|f| f.as_any().downcast_ref::<HouseUnique>())
-            .map(|f| f.get_houses(sudoku))
-            .collect::<Result<Houses, SudokuError>>()?;
-
+            .flat_map(|f| f.get_houses(sudoku))
+            .collect();
+        for (strategy, _) in HOUSE_STRATEGIES {
+            strategy(sudoku, &houses)?;
+        }
         Ok(())
     }
 
@@ -122,7 +128,7 @@ fn get_col_houses(sudoku: &Sudoku) -> Vec<House> {
         .collect()
 }
 
-fn get_box_houses(sudoku: &Sudoku) -> Vec<House> {
+fn get_box_houses(_sudoku: &Sudoku) -> Vec<House> {
     let mut houses = vec![];
     for box_row in 0..3 {
         for box_col in 0..3 {

@@ -5,7 +5,6 @@ use crate::{
         constraints::RcConstraint,
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
-        solver::ALL_STRATEGIES,
     },
     errors::SudokuError,
 };
@@ -14,7 +13,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub row: usize,
     pub col: usize,
@@ -34,8 +33,8 @@ impl Sudoku {
         if self.board.iter().all(Digit::is_solved) {
             return Solution::UniqueSolution(self.clone());
         }
-        for (strategy, num) in ALL_STRATEGIES {
-            let output = strategy(self);
+        for constraints in self.constraints.clone() {
+            constraints.use_strategies(self).unwrap();
         }
         Solution::NoSolution
     }

@@ -1,23 +1,43 @@
-use std::rc::Rc;
-
-use log::debug;
+use std::collections::HashMap;
 
 use crate::{
-    board::{constraints::standard::HouseUnique, digit::Symbol, sudoku::Cell},
+    board::{
+        constraints::standard::{House, HouseSet},
+        digit::Symbol,
+        sudoku::Cell,
+    },
+    errors::SudokuError,
     Sudoku,
 };
 
-pub(crate) fn naked_single(
-    sudoku: &Sudoku,
-    applicable_constraints: Vec<Rc<dyn HouseUnique>>,
-) -> Option<(Cell, Symbol)> {
-    for (cell, candidates) in sudoku.indexed_iter() {
-        // If there is only one candidate, set it
-        if candidates.0.len() == 1 {
-            let digit = candidates.0[0];
-            debug!("{:?} solved by naked_single: {:?}", cell, digit);
-            return Some((cell, digit));
+type HouseStrategy = fn(sudoku: &mut Sudoku, houses: &HouseSet) -> Result<(), SudokuError>;
+
+pub(crate) const HOUSE_STRATEGIES: &[(HouseStrategy, f32)] = &[(hidden_single, 1.1)];
+
+pub(crate) fn hidden_single(sudoku: &mut Sudoku, houses: &HouseSet) -> Result<(), SudokuError> {
+    for house in houses {
+        hidden_single_house(sudoku, house)?;
+    }
+    Ok(())
+}
+
+fn hidden_single_house(sudoku: &mut Sudoku, house: &House) -> Result<(), SudokuError> {
+    let mut digit_count: HashMap<Symbol, Vec<Cell>> = HashMap::new();
+    for cell in house {
+        let candidates = match sudoku.get_cell(cell)?.try_get_candidates().cloned() {
+            Some(c) => c,
+            None => continue,
+        };
+        for candidate in candidates {
+            digit_count.entry(candidate).or_default().push(*cell);
         }
     }
-    None
+    for (symbol, cell) in
+        digit_count
+            .iter()
+            .filter_map(|(s, v)| if v.len() == 1 { Some((s, v[0])) } else { None })
+    {
+        sudoku.place_digit(&cell, symbol)?;
+    }
+    Ok(())
 }
