@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::{debug, trace};
+
 use crate::{
     board::{
         constraints::standard::{House, HouseSet},
@@ -15,6 +17,7 @@ type HouseStrategy = fn(sudoku: &mut Sudoku, houses: &HouseSet) -> Result<(), Su
 pub(crate) const HOUSE_STRATEGIES: &[(HouseStrategy, f32)] = &[(hidden_single, 1.1)];
 
 pub(crate) fn hidden_single(sudoku: &mut Sudoku, houses: &HouseSet) -> Result<(), SudokuError> {
+    debug!("Running Hidden Single");
     for house in houses {
         hidden_single_house(sudoku, house)?;
     }

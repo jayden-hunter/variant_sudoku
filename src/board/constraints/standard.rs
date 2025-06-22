@@ -50,6 +50,18 @@ impl Constraint for Standard {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn propogate_change(
+        &self,
+        sudoku: &mut Sudoku,
+        cell: &Cell,
+        digit: &Digit,
+    ) -> Result<(), SudokuError> {
+        for c in &self.child_constraints {
+            c.propogate_change(sudoku, cell, digit)?;
+        }
+        Ok(())
+    }
 }
 
 pub(crate) type House = Vec<Cell>;
@@ -109,6 +121,29 @@ impl Constraint for HouseUnique {
 
     fn as_any(&self) -> &dyn Any {
         self
+    }
+
+    fn propogate_change(
+        &self,
+        sudoku: &mut Sudoku,
+        cell: &Cell,
+        digit: &Digit,
+    ) -> Result<(), SudokuError> {
+        let symbol = match digit.try_get_solved() {
+            Some(s) => s,
+            None => return Ok(()),
+        };
+        let houses = self.get_houses(sudoku);
+        let applicable_houses = houses.iter().filter(|c| c.contains(cell));
+        for house in applicable_houses {
+            for house_cell in house {
+                if cell == house_cell {
+                    continue;
+                }
+                sudoku.remove_candidate(cell, symbol)?;
+            }
+        }
+        Ok(())
     }
 }
 

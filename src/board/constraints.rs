@@ -16,16 +16,9 @@ pub trait Constraint: Any {
     fn propogate_change(
         &self,
         sudoku: &mut Sudoku,
-        _cell: &Cell,
-        _digit: &Digit,
-    ) -> Result<(), SudokuError> {
-        // Collect cells first to avoid borrow checker issues
-        let cells: Vec<Cell> = sudoku.indexed_iter().map(|(cell, _)| cell).collect();
-        for cell in cells {
-            self.filter_cell_candidates(sudoku, &cell)?
-        }
-        Ok(())
-    }
+        cell: &Cell,
+        digit: &Digit,
+    ) -> Result<(), SudokuError>;
 
     fn as_any(&self) -> &dyn Any;
 

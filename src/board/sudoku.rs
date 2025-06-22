@@ -119,6 +119,12 @@ impl Sudoku {
         }
         Ok(())
     }
+
+    pub fn remove_candidate(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
+        (*self.get_cell_mut(cell)?).0.retain(|f| f != symbol);
+        // TODO Propogate removal of candidate update
+        Ok(())
+    }
 }
 
 impl Display for Sudoku {
