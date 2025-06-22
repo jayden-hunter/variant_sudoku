@@ -1,6 +1,6 @@
 pub(crate) mod standard;
 
-use std::rc::Rc;
+use std::{any::Any, rc::Rc};
 
 use crate::{
     board::{digit::Digit, sudoku::Cell},
@@ -8,7 +8,7 @@ use crate::{
     Sudoku,
 };
 
-pub trait Constraint {
+pub trait Constraint: Any {
     // fn is_satisfied(&self, sudoku: &Sudoku) -> bool;
 
     fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError>;
@@ -26,6 +26,10 @@ pub trait Constraint {
         }
         Ok(())
     }
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError>;
 }
 
 pub type RcConstraint = Rc<dyn Constraint>;

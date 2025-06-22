@@ -34,18 +34,8 @@ impl Sudoku {
         if self.board.iter().all(Digit::is_solved) {
             return Solution::UniqueSolution(self.clone());
         }
-        for constraint in self.constraints.clone() {
-            let cells: Vec<_> = self.indexed_iter().map(|(cell, _)| cell).collect();
-            for cell in cells {
-                constraint.filter_cell_candidates(self, &cell).unwrap();
-            }
-        }
-        for (strategy, _difficulty) in ALL_STRATEGIES {
-            if let Some((cell, s)) = strategy(self) {
-                let mut next_board = self.clone();
-                *next_board.get_cell_mut(&cell).unwrap() = Digit(vec![s]);
-                return next_board.solve();
-            }
+        for (strategy, num) in ALL_STRATEGIES {
+            let output = strategy(self);
         }
         Solution::NoSolution
     }

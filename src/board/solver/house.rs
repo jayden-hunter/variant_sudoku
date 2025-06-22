@@ -1,11 +1,16 @@
+use std::rc::Rc;
+
 use log::debug;
 
 use crate::{
-    board::{digit::Symbol, sudoku::Cell},
+    board::{constraints::standard::HouseUnique, digit::Symbol, sudoku::Cell},
     Sudoku,
 };
 
-pub(crate) fn naked_single(sudoku: &Sudoku) -> Option<(Cell, Symbol)> {
+pub(crate) fn naked_single(
+    sudoku: &Sudoku,
+    applicable_constraints: Vec<Rc<dyn HouseUnique>>,
+) -> Option<(Cell, Symbol)> {
     for (cell, candidates) in sudoku.indexed_iter() {
         // If there is only one candidate, set it
         if candidates.0.len() == 1 {
