@@ -15,20 +15,23 @@ use std::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Cell {
+pub struct Cell {
     pub row: usize,
     pub col: usize,
 }
 
+type Board = Grid<Digit>;
+type Constraints = Vec<RcConstraint>;
+
 #[derive(Clone)]
 pub struct Sudoku {
-    pub(crate) board: Grid<Digit>,
-    pub(crate) constraints: Vec<RcConstraint>,
+    pub(crate) board: Board,
+    pub(crate) constraints: Constraints,
 }
 
 impl Sudoku {
     pub fn solve(&mut self) -> Solution {
-        if self.board.iter().all(|c| matches!(c, Digit::Symbol(_))) {
+        if self.board.iter().all(Digit::is_solved) {
             return Solution::UniqueSolution(self.clone());
         }
         for constraint in self.constraints.clone() {
@@ -40,7 +43,7 @@ impl Sudoku {
         for (strategy, _difficulty) in ALL_STRATEGIES {
             if let Some((cell, s)) = strategy(self) {
                 let mut next_board = self.clone();
-                *next_board.get_cell_mut(&cell).unwrap() = Digit::Symbol(s);
+                *next_board.get_cell_mut(&cell).unwrap() = Digit(vec![s]);
                 return next_board.solve();
             }
         }
@@ -83,22 +86,11 @@ impl Sudoku {
                     digit,
                 )
             })
-            .filter_map(|(c, d)| match d {
-                Digit::Symbol(_) => None,
-                Digit::Candidates(symbols) => Some((c, symbols)),
-            })
+            .filter_map(|(c, d)| d.try_get_candidates().map(|v| (c, v)))
     }
 
     pub fn to_string_line(&self) -> SolutionString {
-        SolutionString(
-            self.board
-                .iter()
-                .map(|d| match d {
-                    Digit::Symbol(s) => s.0,
-                    Digit::Candidates(_) => '.',
-                })
-                .collect(),
-        )
+        SolutionString(self.board.iter().map(Digit::get_char).collect())
     }
 
     pub(crate) fn valid_symbols() -> Candidates {
@@ -113,6 +105,29 @@ impl Sudoku {
             Symbol('8'),
             Symbol('9'),
         ]
+    }
+
+    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
+        let (rows, cols) = givens.size();
+        let board = Grid::init(rows, cols, Digit(Self::valid_symbols()));
+        let mut sudoku = Sudoku { board, constraints };
+        for (cell, symbol) in givens
+            .indexed_iter()
+            .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
+        {
+            sudoku.place_digit(&cell, symbol).unwrap()
+        }
+        sudoku
+    }
+
+    pub fn place_digit(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
+        let digit = Digit(vec![*symbol]);
+        *self.get_cell_mut(cell)? = digit.clone();
+        // Notify each constraint that cell has had an update.
+        for constraint in self.constraints.clone().iter() {
+            constraint.propogate_change(self, cell, &digit)?;
+        }
+        Ok(())
     }
 }
 

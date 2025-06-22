@@ -1,9 +1,9 @@
-use log::{debug, trace};
+use log::trace;
 use std::rc::Rc;
 
 use crate::{
     board::{
-        constraints::{combine_candidates, RcConstraint},
+        constraints::{combine_constraints, RcConstraint},
         digit::Digit,
         sudoku::Cell,
     },
@@ -29,7 +29,7 @@ impl Default for Standard {
 
 impl Constraint for Standard {
     fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
-        combine_candidates(&self.child_constraints, sudoku, cell)
+        combine_constraints(&self.child_constraints, sudoku, cell)
     }
 }
 
@@ -69,15 +69,15 @@ impl<T: ?Sized + HouseUnique> Constraint for T {
         for house in &houses {
             if house.contains(cell) {
                 for house_cell in house {
-                    if let Digit::Symbol(digit) = sudoku.get_cell(house_cell).unwrap() {
-                        filtered_candidates.retain(|&d| d != *digit);
+                    if let Some(symbol) = sudoku.get_cell(house_cell)?.try_get_solved() {
+                        filtered_candidates.retain(|&d| d != *symbol);
                     }
                 }
                 break; // Only need to check the house containing the cell
             }
         }
         let candidates_after = filtered_candidates.len();
-        *sudoku.get_cell_mut(cell)? = Digit::Candidates(filtered_candidates);
+        *sudoku.get_cell_mut(cell)? = Digit(filtered_candidates);
         if candidates_before != candidates_after {
             trace!(
                 "HouseUnique filtered {candidates_before} down to {candidates_after} for {cell:?}."

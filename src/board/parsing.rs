@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Deserialize)]
-struct SudokuHelper {
+struct YamlSudoku {
     board: String,
     constraints: Option<Vec<YamlConstraint>>,
 }
@@ -54,30 +54,30 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
     where
         D: serde::Deserializer<'de>,
     {
-        let helper = SudokuHelper::deserialize(deserializer)?;
-        let valid_digits = Sudoku::valid_symbols();
-        let board: Vec<Digit> = helper
+        let helper = YamlSudoku::deserialize(deserializer)?;
+        let givens = helper.generate_given_board();
+        let constraints =
+            parse_constraints(helper.constraints).map_err(serde::de::Error::custom)?;
+        Ok(Sudoku::new(givens, constraints))
+    }
+}
+
+impl YamlSudoku {
+    fn generate_given_board(&self) -> Grid<Option<Symbol>> {
+        let cells: Vec<Option<Symbol>> = self
             .board
             .lines()
             .flat_map(|row| {
-                row.chars()
-                    .map(|d| {
-                        if d.is_ascii_alphanumeric() {
-                            Digit::Symbol(Symbol(d))
-                        } else {
-                            Digit::Candidates(valid_digits.to_vec())
-                        }
-                    })
-                    .collect::<Vec<Digit>>()
+                row.chars().map(|d| {
+                    if d.is_ascii_alphanumeric() {
+                        Some(Symbol(d))
+                    } else {
+                        None
+                    }
+                })
             })
-            .collect();
-        let grid = Grid::from_vec(board, 9);
-        let constraints =
-            parse_constraints(helper.constraints).map_err(serde::de::Error::custom)?;
-        Ok(Sudoku {
-            board: grid,
-            constraints,
-        })
+            .collect::<Vec<Option<Symbol>>>();
+        Grid::from_vec(cells, 9)
     }
 }
 
@@ -104,20 +104,4 @@ fn parse_constraints(
             e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
         })
         .collect()
-}
-
-impl Serialize for Sudoku {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(
-            &self
-                .board
-                .iter()
-                .map(|digit| digit.to_string())
-                .collect::<Vec<String>>()
-                .join(""),
-        )
-    }
 }
