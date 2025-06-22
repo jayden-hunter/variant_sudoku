@@ -1,12 +1,12 @@
 use std::rc::Rc;
 
 use grid::Grid;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::{
     board::{
         constraints::{self, RcConstraint},
-        digit::{Digit, Symbol},
+        digit::Symbol,
         sudoku::Cell,
     },
     Sudoku, SudokuError,

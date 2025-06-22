@@ -74,6 +74,7 @@ impl Sudoku {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn indexed_candidate_iter(&self) -> impl Iterator<Item = (Cell, &Candidates)> {
         self.board
             .indexed_iter()

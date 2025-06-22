@@ -6,7 +6,7 @@ pub type Candidates = Vec<Symbol>;
 pub struct Digit(pub(crate) Candidates);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) struct Symbol(pub(crate) char);
+pub struct Symbol(pub char);
 
 impl Symbol {
     #[allow(dead_code)]
@@ -14,6 +14,7 @@ impl Symbol {
         self.0.to_digit(10).map(|c| c as u8)
     }
 
+    #[allow(dead_code)]
     pub fn from_num(num: u8) -> Self {
         let c = num as char;
         Self(c)
@@ -39,6 +40,7 @@ impl Digit {
         None
     }
 
+    #[allow(dead_code)]
     pub(crate) fn try_get_candidates(&self) -> Option<&Candidates> {
         if self.is_solved() {
             return None;
@@ -60,6 +62,7 @@ impl Display for Digit {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn intersect_candidates(c: Vec<&Candidates>) -> Candidates {
     if c.is_empty() {
         return Vec::new();
