@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     board::{
-        constraints::{self, RcConstraint},
+        constraints::{standard::HouseUnique, RcConstraint},
         digit::Symbol,
         sudoku::Cell,
     },
@@ -94,14 +94,27 @@ impl<'de> serde::de::Deserialize<'de> for Cell {
 fn parse_constraints(
     yaml_constraints: Option<Vec<YamlConstraint>>,
 ) -> Result<Vec<RcConstraint>, SudokuError> {
-    yaml_constraints
+    let nested_constraints = yaml_constraints
         .unwrap_or(vec![YamlConstraint::Standard])
         .into_iter()
         .map(|constraint| match constraint {
-            YamlConstraint::Standard => {
-                Ok(Rc::new(constraints::standard::Standard::default()) as RcConstraint)
-            }
+            YamlConstraint::Standard => Ok(new_standard_constraints()),
             e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let flat_constraints = nested_constraints
+        .iter()
+        .flatten()
+        .cloned()
+        .collect::<Vec<_>>();
+    Ok(flat_constraints)
+}
+
+fn new_standard_constraints() -> Vec<RcConstraint> {
+    vec![
+        Rc::new(HouseUnique::Row),
+        Rc::new(HouseUnique::Col),
+        Rc::new(HouseUnique::Box),
+    ]
 }

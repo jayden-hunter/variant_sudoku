@@ -2,10 +2,10 @@ use std::fmt::{Debug, Display};
 
 pub type Candidates = Vec<Symbol>;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digit(pub(crate) Candidates);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Symbol(pub char);
 
 impl Symbol {
@@ -22,6 +22,7 @@ impl Symbol {
 }
 
 impl Digit {
+    #[allow(dead_code)]
     pub(crate) fn try_candidates(&self) -> Option<&Candidates> {
         match self.0.len() {
             1 => None,

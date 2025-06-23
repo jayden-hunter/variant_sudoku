@@ -1,11 +1,11 @@
 use grid::Grid;
+use log::debug;
 
 use crate::{
     board::{
         constraints::RcConstraint,
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
-        solver::ALL_STRATEGIES,
     },
     errors::SudokuError,
 };
@@ -14,7 +14,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
     pub row: usize,
     pub col: usize,
@@ -34,18 +34,8 @@ impl Sudoku {
         if self.board.iter().all(Digit::is_solved) {
             return Solution::UniqueSolution(self.clone());
         }
-        for constraint in self.constraints.clone() {
-            let cells: Vec<_> = self.indexed_iter().map(|(cell, _)| cell).collect();
-            for cell in cells {
-                constraint.filter_cell_candidates(self, &cell).unwrap();
-            }
-        }
-        for (strategy, _difficulty) in ALL_STRATEGIES {
-            if let Some((cell, s)) = strategy(self) {
-                let mut next_board = self.clone();
-                *next_board.get_cell_mut(&cell).unwrap() = Digit(vec![s]);
-                return next_board.solve();
-            }
+        for constraints in self.constraints.clone() {
+            constraints.use_strategies(self).unwrap();
         }
         Solution::NoSolution
     }
@@ -62,6 +52,7 @@ impl Sudoku {
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &Digit)> {
         self.board.indexed_iter().map(|(cell, digit)| {
             (
@@ -121,12 +112,35 @@ impl Sudoku {
         sudoku
     }
 
+    /// Makes the Symbol the only one in that cell.
     pub fn place_digit(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
+        let before = self.get_cell(cell)?;
+        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?}");
         let digit = Digit(vec![*symbol]);
         *self.get_cell_mut(cell)? = digit.clone();
-        // Notify each constraint that cell has had an update.
+        self.notify(cell)
+    }
+
+    /// Removes the candidate as an option from that cell.
+    pub fn remove_candidate(
+        &mut self,
+        cell: &Cell,
+        symbol_to_remove: &Symbol,
+    ) -> Result<(), SudokuError> {
+        debug!("Removing {symbol_to_remove:?} from {cell:?}");
+        let cell_mut = self.get_cell_mut(cell)?;
+        if !cell_mut.0.contains(symbol_to_remove) {
+            return Ok(());
+        }
+        cell_mut.0.retain(|f| f != symbol_to_remove);
+        let candidates_left = &self.get_cell(cell)?.0;
+        debug!("Candidates left after removal: {candidates_left:?}");
+        self.notify(cell)
+    }
+
+    pub(crate) fn notify(&mut self, cell: &Cell) -> Result<(), SudokuError> {
         for constraint in self.constraints.clone().iter() {
-            constraint.propogate_change(self, cell, &digit)?;
+            constraint.notify_update(self, cell)?;
         }
         Ok(())
     }
