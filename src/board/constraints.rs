@@ -2,23 +2,17 @@ pub(crate) mod standard;
 
 use std::{any::Any, rc::Rc};
 
-use crate::{
-    board::{digit::Digit, sudoku::Cell},
-    errors::SudokuError,
-    Sudoku,
-};
+use crate::{board::sudoku::Cell, errors::SudokuError, Sudoku};
 
 pub trait Constraint: Any {
-    // fn is_satisfied(&self, sudoku: &Sudoku) -> bool;
-
-    fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError>;
-
-    fn propogate_change(
-        &self,
-        sudoku: &mut Sudoku,
-        cell: &Cell,
-        digit: &Digit,
-    ) -> Result<(), SudokuError>;
+    /// For each constraint, this notify update should be called to indicate it should check for any propogations.
+    ///
+    /// For instance, this might be called on a cell in a RowUnique constraint for that constraint
+    /// to handle removing the digit as candidates in that row.
+    ///
+    /// For advanced logic, you can use a solver. This is mostly used for naked singles
+    /// and removing obvious constraint violations (like thermo or kropki constraints)
+    fn notify_update(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError>;
 
     fn as_any(&self) -> &dyn Any;
 
@@ -26,17 +20,3 @@ pub trait Constraint: Any {
 }
 
 pub type RcConstraint = Rc<dyn Constraint>;
-
-pub(crate) fn combine_constraints(
-    constraints: &[RcConstraint],
-    sudoku: &mut Sudoku,
-    cell: &Cell,
-) -> Result<(), SudokuError> {
-    if sudoku.get_cell(cell)?.is_solved() {
-        return Ok(());
-    }
-    for constraint in constraints {
-        constraint.filter_cell_candidates(sudoku, cell)?
-    }
-    Ok(())
-}

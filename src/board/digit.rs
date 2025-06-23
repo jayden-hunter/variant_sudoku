@@ -22,6 +22,7 @@ impl Symbol {
 }
 
 impl Digit {
+    #[allow(dead_code)]
     pub(crate) fn try_candidates(&self) -> Option<&Candidates> {
         match self.0.len() {
             1 => None,

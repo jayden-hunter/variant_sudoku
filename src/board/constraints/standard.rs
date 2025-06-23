@@ -1,13 +1,7 @@
-use log::trace;
-use std::{any::Any, collections::HashSet, rc::Rc};
+use std::{any::Any, collections::HashSet};
 
 use crate::{
-    board::{
-        constraints::{combine_constraints, RcConstraint},
-        digit::Digit,
-        solver::house::HOUSE_STRATEGIES,
-        sudoku::Cell,
-    },
+    board::{solver::house::HOUSE_STRATEGIES, sudoku::Cell},
     errors::SudokuError,
     Constraint, Sudoku,
 };
@@ -20,48 +14,6 @@ pub(crate) enum HouseUnique {
     Col,
     Box,
     Custom(Vec<House>),
-}
-
-pub(crate) struct Standard {
-    child_constraints: [RcConstraint; 3],
-}
-
-impl Default for Standard {
-    fn default() -> Self {
-        Self {
-            child_constraints: [
-                Rc::new(HouseUnique::Row),
-                Rc::new(HouseUnique::Col),
-                Rc::new(HouseUnique::Box),
-            ],
-        }
-    }
-}
-
-impl Constraint for Standard {
-    fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
-        combine_constraints(&self.child_constraints, sudoku, cell)
-    }
-    fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError> {
-        // Standard strategies of sudoku all rely on Houses, so we can just call the first and be done with it.
-        self.child_constraints[0].use_strategies(sudoku)
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn propogate_change(
-        &self,
-        sudoku: &mut Sudoku,
-        cell: &Cell,
-        digit: &Digit,
-    ) -> Result<(), SudokuError> {
-        for c in &self.child_constraints {
-            c.propogate_change(sudoku, cell, digit)?;
-        }
-        Ok(())
-    }
 }
 
 pub(crate) type House = Vec<Cell>;
@@ -77,34 +29,6 @@ impl HouseUnique {
 }
 
 impl Constraint for HouseUnique {
-    fn filter_cell_candidates(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
-        let houses = self.get_houses(sudoku);
-        let mut filtered_candidates = match sudoku.get_cell(cell)?.try_candidates() {
-            Some(v) => v.clone(),
-            None => return Ok(()),
-        };
-        let candidates_before = filtered_candidates.len();
-
-        for house in &houses {
-            if house.contains(cell) {
-                for house_cell in house {
-                    if let Some(symbol) = sudoku.get_cell(house_cell)?.try_get_solved() {
-                        filtered_candidates.retain(|&d| d != *symbol);
-                    }
-                }
-                break; // Only need to check the house containing the cell
-            }
-        }
-        let candidates_after = filtered_candidates.len();
-        *sudoku.get_cell_mut(cell)? = Digit(filtered_candidates);
-        if candidates_before != candidates_after {
-            trace!(
-                "HouseUnique filtered {candidates_before} down to {candidates_after} for {cell:?}."
-            );
-        }
-        Ok(())
-    }
-
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError> {
         // Get all houses of the sudoku.
         let houses: HouseSet = sudoku
@@ -123,25 +47,21 @@ impl Constraint for HouseUnique {
         self
     }
 
-    fn propogate_change(
-        &self,
-        sudoku: &mut Sudoku,
-        cell: &Cell,
-        digit: &Digit,
-    ) -> Result<(), SudokuError> {
-        let symbol = match digit.try_get_solved() {
+    fn notify_update(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
+        // Check if the cell is solved.
+        let digit = sudoku.get_cell(cell)?.clone();
+        let symbol_to_remove_from_house = match digit.try_get_solved() {
             Some(s) => s,
             None => return Ok(()),
         };
         let houses = self.get_houses(sudoku);
-        let applicable_houses = houses.iter().filter(|c| c.contains(cell));
-        for house in applicable_houses {
-            for house_cell in house {
-                if cell == house_cell {
-                    continue;
-                }
-                sudoku.remove_candidate(cell, symbol)?;
-            }
+        let cells = houses
+            .iter()
+            .filter(|c| c.contains(cell))
+            .flatten()
+            .filter(|f| *f != cell);
+        for c in cells {
+            sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
         }
         Ok(())
     }

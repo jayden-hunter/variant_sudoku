@@ -1,4 +1,5 @@
 use grid::Grid;
+use log::debug;
 
 use crate::{
     board::{
@@ -51,6 +52,7 @@ impl Sudoku {
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn indexed_iter(&self) -> impl Iterator<Item = (Cell, &Digit)> {
         self.board.indexed_iter().map(|(cell, digit)| {
             (
@@ -110,19 +112,36 @@ impl Sudoku {
         sudoku
     }
 
+    /// Makes the Symbol the only one in that cell.
     pub fn place_digit(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
+        let before = self.get_cell(cell)?;
+        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?}");
         let digit = Digit(vec![*symbol]);
         *self.get_cell_mut(cell)? = digit.clone();
-        // Notify each constraint that cell has had an update.
-        for constraint in self.constraints.clone().iter() {
-            constraint.propogate_change(self, cell, &digit)?;
-        }
-        Ok(())
+        self.notify(cell)
     }
 
-    pub fn remove_candidate(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
-        (*self.get_cell_mut(cell)?).0.retain(|f| f != symbol);
-        // TODO Propogate removal of candidate update
+    /// Removes the candidate as an option from that cell.
+    pub fn remove_candidate(
+        &mut self,
+        cell: &Cell,
+        symbol_to_remove: &Symbol,
+    ) -> Result<(), SudokuError> {
+        debug!("Removing {symbol_to_remove:?} from {cell:?}");
+        let cell_mut = self.get_cell_mut(cell)?;
+        if !cell_mut.0.contains(symbol_to_remove) {
+            return Ok(());
+        }
+        cell_mut.0.retain(|f| f != symbol_to_remove);
+        let candidates_left = &self.get_cell(cell)?.0;
+        debug!("Candidates left after removal: {candidates_left:?}");
+        self.notify(cell)
+    }
+
+    pub(crate) fn notify(&mut self, cell: &Cell) -> Result<(), SudokuError> {
+        for constraint in self.constraints.clone().iter() {
+            constraint.notify_update(self, cell)?;
+        }
         Ok(())
     }
 }

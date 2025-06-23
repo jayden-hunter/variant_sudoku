@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, trace};
+use log::debug;
 
 use crate::{
     board::{
