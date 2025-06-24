@@ -1,5 +1,5 @@
 use grid::Grid;
-use log::debug;
+use log::{debug, trace};
 
 use crate::{
     board::{
@@ -115,7 +115,7 @@ impl Sudoku {
     /// Makes the Symbol the only one in that cell.
     pub fn place_digit(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
         let before = self.get_cell(cell)?;
-        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?}");
+        trace!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?}");
         let digit = Digit(vec![*symbol]);
         *self.get_cell_mut(cell)? = digit.clone();
         self.notify(cell)
@@ -127,14 +127,14 @@ impl Sudoku {
         cell: &Cell,
         symbol_to_remove: &Symbol,
     ) -> Result<(), SudokuError> {
-        debug!("Removing {symbol_to_remove:?} from {cell:?}");
+        trace!("Removing {symbol_to_remove:?} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
         if !cell_mut.0.contains(symbol_to_remove) {
             return Ok(());
         }
         cell_mut.0.retain(|f| f != symbol_to_remove);
         let candidates_left = &self.get_cell(cell)?.0;
-        debug!("Candidates left after removal: {candidates_left:?}");
+        trace!("Candidates left after removal: {candidates_left:?}");
         self.notify(cell)
     }
 
