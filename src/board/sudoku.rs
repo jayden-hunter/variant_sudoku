@@ -154,6 +154,22 @@ impl Sudoku {
         self.notify(cell)
     }
 
+    // Keeps the candidate as an option from that cell (similar to an intersection)
+    pub fn keep_candidates(
+        &mut self,
+        cell: &Cell,
+        symbols_to_keep: &Candidates,
+    ) -> Result<DidUpdateGrid, SudokuError> {
+        trace!("Keeping Only {symbols_to_keep:?} from {cell:?}");
+        let cell_mut = self.get_cell_mut(cell)?;
+        let before = cell_mut.clone();
+        cell_mut.0.retain(|f| symbols_to_keep.contains(f));
+        if before == *cell_mut {
+            return Ok(false);
+        }
+        self.notify(cell)
+    }
+
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
         let mut did_update = false;
         for constraint in self.constraints.clone().iter() {

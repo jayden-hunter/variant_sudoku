@@ -88,8 +88,7 @@ mod tests {
 
     sudoku_test!(test_easy_standard);
     sudoku_test!(test_trivial_standard);
-
     sudoku_test!(test_locked_candidate_standard);
-
+    sudoku_test!(test_hidden_subset_standard);
     sudoku_test!(test_unsolveable_variants, SKIP);
 }
