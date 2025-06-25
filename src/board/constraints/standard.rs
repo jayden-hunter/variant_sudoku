@@ -1,7 +1,11 @@
 use std::{any::Any, collections::HashSet};
 
 use crate::{
-    board::{solver::house::HOUSE_STRATEGIES, sudoku::Cell},
+    board::{
+        digit::Symbol,
+        solver::house::HOUSE_STRATEGIES,
+        sudoku::{Cell, DidUpdateGrid},
+    },
     errors::SudokuError,
     Constraint, Sudoku,
 };
@@ -29,7 +33,8 @@ impl HouseUnique {
 }
 
 impl Constraint for HouseUnique {
-    fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<(), SudokuError> {
+    fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<DidUpdateGrid, SudokuError> {
+        let mut did_update = false;
         // Get all houses of the sudoku.
         let houses: HouseSet = sudoku
             .constraints
@@ -38,21 +43,26 @@ impl Constraint for HouseUnique {
             .flat_map(|f| f.get_houses(sudoku))
             .collect();
         for (strategy, _) in HOUSE_STRATEGIES {
-            strategy(sudoku, &houses)?;
+            did_update |= strategy(sudoku, &houses)?;
         }
-        Ok(())
+        Ok(did_update)
     }
 
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn notify_update(&self, sudoku: &mut Sudoku, cell: &Cell) -> Result<(), SudokuError> {
+    fn notify_update(
+        &self,
+        sudoku: &mut Sudoku,
+        cell: &Cell,
+    ) -> Result<DidUpdateGrid, SudokuError> {
+        let mut did_update = false;
         // Check if the cell is solved.
         let digit = sudoku.get_cell(cell)?.clone();
         let symbol_to_remove_from_house = match digit.try_get_solved() {
             Some(s) => s,
-            None => return Ok(()),
+            None => return Ok(did_update),
         };
         let houses = self.get_houses(sudoku);
         let cells = houses
@@ -61,9 +71,9 @@ impl Constraint for HouseUnique {
             .flatten()
             .filter(|f| *f != cell);
         for c in cells {
-            sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
+            did_update |= sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
         }
-        Ok(())
+        Ok(did_update)
     }
 }
 
@@ -99,4 +109,36 @@ fn get_box_houses(_sudoku: &Sudoku) -> Vec<House> {
         }
     }
     houses
+}
+
+pub(crate) fn get_house_candidates(
+    sudoku: &Sudoku,
+    house: &House,
+) -> Result<HashSet<Symbol>, SudokuError> {
+    let mut candidates = HashSet::new();
+    for cell in house {
+        let digit = sudoku.get_cell(cell)?;
+        if let Some(c) = digit.try_get_candidates() {
+            candidates.extend(c.iter().cloned());
+        }
+    }
+    Ok(candidates)
+}
+
+pub(crate) fn get_cells_in_house(
+    sudoku: &Sudoku,
+    house: &House,
+    symbol: &Symbol,
+) -> Result<Vec<Cell>, SudokuError> {
+    let mut cells = vec![];
+    for cell in house {
+        if sudoku
+            .get_cell(cell)?
+            .try_get_candidates()
+            .map_or(false, |c| c.contains(symbol))
+        {
+            cells.push(*cell);
+        }
+    }
+    Ok(cells)
 }

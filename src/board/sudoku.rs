@@ -1,5 +1,5 @@
 use grid::Grid;
-use log::debug;
+use log::{debug, trace};
 
 use crate::{
     board::{
@@ -20,6 +20,7 @@ pub struct Cell {
     pub col: usize,
 }
 
+pub(crate) type DidUpdateGrid = bool;
 type Board = Grid<Digit>;
 type Constraints = Vec<RcConstraint>;
 
@@ -31,13 +32,18 @@ pub struct Sudoku {
 
 impl Sudoku {
     pub fn solve(&mut self) -> Solution {
-        if self.board.iter().all(Digit::is_solved) {
-            return Solution::UniqueSolution(self.clone());
+        loop {
+            let mut did_update = false;
+            for constraints in self.constraints.clone() {
+                did_update |= constraints.use_strategies(self).unwrap();
+            }
+            if self.board.iter().all(Digit::is_solved) {
+                return Solution::UniqueSolution(self.clone());
+            }
+            if !did_update {
+                return Solution::NoSolution;
+            }
         }
-        for constraints in self.constraints.clone() {
-            constraints.use_strategies(self).unwrap();
-        }
-        Solution::NoSolution
     }
 
     pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
@@ -107,16 +113,23 @@ impl Sudoku {
             .indexed_iter()
             .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
         {
-            sudoku.place_digit(&cell, symbol).unwrap()
+            sudoku.place_digit(&cell, symbol).unwrap();
         }
         sudoku
     }
 
     /// Makes the Symbol the only one in that cell.
-    pub fn place_digit(&mut self, cell: &Cell, symbol: &Symbol) -> Result<(), SudokuError> {
+    pub fn place_digit(
+        &mut self,
+        cell: &Cell,
+        symbol: &Symbol,
+    ) -> Result<DidUpdateGrid, SudokuError> {
         let before = self.get_cell(cell)?;
-        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?}");
         let digit = Digit(vec![*symbol]);
+        if *before == digit {
+            return Ok(false);
+        }
+        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})", self.get_entropy());
         *self.get_cell_mut(cell)? = digit.clone();
         self.notify(cell)
     }
@@ -126,23 +139,36 @@ impl Sudoku {
         &mut self,
         cell: &Cell,
         symbol_to_remove: &Symbol,
-    ) -> Result<(), SudokuError> {
-        debug!("Removing {symbol_to_remove:?} from {cell:?}");
+    ) -> Result<DidUpdateGrid, SudokuError> {
+        trace!("Removing {symbol_to_remove:?} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
         if !cell_mut.0.contains(symbol_to_remove) {
-            return Ok(());
+            return Ok(false);
         }
         cell_mut.0.retain(|f| f != symbol_to_remove);
         let candidates_left = &self.get_cell(cell)?.0;
-        debug!("Candidates left after removal: {candidates_left:?}");
+        trace!(
+            "Candidates left after removal: {candidates_left:?}, Entropy is now {:.2}",
+            self.get_entropy()
+        );
         self.notify(cell)
     }
 
-    pub(crate) fn notify(&mut self, cell: &Cell) -> Result<(), SudokuError> {
+    pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
+        let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
-            constraint.notify_update(self, cell)?;
+            did_update |= constraint.notify_update(self, cell)?;
         }
-        Ok(())
+        Ok(did_update)
+    }
+
+    pub(crate) fn get_entropy(&self) -> f64 {
+        let maximum = Self::valid_symbols().len() * self.board.rows() * self.board.cols();
+        let mut candidate_count = 0;
+        for (_, d) in self.indexed_iter() {
+            candidate_count += d.0.len() - 1;
+        }
+        candidate_count as f64 / maximum as f64
     }
 }
 
@@ -165,6 +191,7 @@ impl Display for Sudoku {
             writeln!(f)?;
         }
         writeln!(f, "Constraints: {}", self.constraints.len())?;
+        writeln!(f, "Entropy: {:.2}", self.get_entropy())?;
         Ok(())
     }
 }
