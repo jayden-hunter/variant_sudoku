@@ -34,7 +34,6 @@ impl HouseUnique {
 
 impl Constraint for HouseUnique {
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<DidUpdateGrid, SudokuError> {
-        let mut did_update = false;
         // Get all houses of the sudoku.
         let houses: HouseSet = sudoku
             .constraints
@@ -43,9 +42,12 @@ impl Constraint for HouseUnique {
             .flat_map(|f| f.get_houses(sudoku))
             .collect();
         for (strategy, _) in HOUSE_STRATEGIES {
-            did_update |= strategy(sudoku, &houses)?;
+            let did_update = strategy(sudoku, &houses)?;
+            if did_update {
+                return Ok(true)
+            }
         }
-        Ok(did_update)
+        Ok(false)
     }
 
     fn as_any(&self) -> &dyn Any {

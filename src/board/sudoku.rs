@@ -34,16 +34,20 @@ impl Sudoku {
     pub fn solve(&mut self) -> Solution {
         loop {
             let mut did_update = false;
-            for constraints in self.constraints.clone() {
-                did_update |= constraints.use_strategies(self).unwrap();
-            }
-            if self.board.iter().all(Digit::is_solved) {
-                return Solution::UniqueSolution(self.clone());
+            for constraint in self.constraints.clone() {
+                did_update |= constraint.use_strategies(self).unwrap();
+                if self.is_solved() {
+                    return Solution::UniqueSolution(self.clone())
+                }
             }
             if !did_update {
                 return Solution::NoSolution;
             }
         }
+    }
+
+    pub fn is_solved(&self) -> bool {
+        self.board.iter().all(Digit::is_solved)
     }
 
     pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
@@ -129,7 +133,7 @@ impl Sudoku {
         if *before == digit {
             return Ok(false);
         }
-        debug!("Placing Symbol {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})", self.get_entropy());
+        debug!("Placing {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})", self.get_entropy());
         *self.get_cell_mut(cell)? = digit.clone();
         self.notify(cell)
     }
@@ -182,6 +186,9 @@ impl Sudoku {
         let maximum = Self::valid_symbols().len() * self.board.rows() * self.board.cols();
         let mut candidate_count = 0;
         for (_, d) in self.indexed_iter() {
+            if d.0.is_empty() {
+                return -1.0
+            }
             candidate_count += d.0.len() - 1;
         }
         candidate_count as f64 / maximum as f64

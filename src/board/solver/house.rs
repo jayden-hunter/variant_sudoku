@@ -31,11 +31,13 @@ pub(crate) fn hidden_single(
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
-    let mut did_update = false;
     for house in houses {
-        did_update |= hidden_single_house(sudoku, house)?;
+        let did_update = hidden_single_house(sudoku, house)?;
+        if did_update {
+            return Ok(true)
+        }
     }
-    Ok(did_update)
+    Ok(false)
 }
 
 fn hidden_single_house(sudoku: &mut Sudoku, house: &House) -> Result<DidUpdateGrid, SudokuError> {
@@ -67,7 +69,6 @@ pub(crate) fn locked_candidate(
     sudoku: &mut Sudoku,
     houses: &HouseSet,
 ) -> Result<DidUpdateGrid, SudokuError> {
-    let mut did_update = false;
     debug!(
         "Running Locked Candidate (Starting Entropy is {:.2}) ({:?}",
         sudoku.get_entropy(),
@@ -79,9 +80,12 @@ pub(crate) fn locked_candidate(
             [h1, h2] => (h1, h2),
             _ => continue,
         };
-        did_update |= locked_candidate_houses(sudoku, house1, house2)?;
+        let did_update = locked_candidate_houses(sudoku, house1, house2)?;
+        if did_update {
+            return Ok(true)
+        }
     }
-    Ok(did_update)
+    Ok(false)
 }
 
 /// Checks if a given digit is placed in h1 only at an intersection of h2.
@@ -121,7 +125,6 @@ pub(crate) fn hidden_subset(
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
-    let mut did_update = false;
     let max_house_size = houses.iter().map(|h| h.len()).max().ok_or_else(|| {
         SudokuError::UnsupportedConstraint("House must contain at least 1 Cell".to_owned())
     })?;
@@ -129,13 +132,13 @@ pub(crate) fn hidden_subset(
     trace!("Max House Size: {max_house_size}, Max Subset Size: {max_subset_size}");
     for subset_size in 2..=max_subset_size {
         for house in houses {
-            did_update |= hidden_subset_house(sudoku, house, subset_size)?;
-        }
-        if did_update {
-            return Ok(did_update);
+            let did_update = hidden_subset_house(sudoku, house, subset_size)?;
+            if did_update {
+                return Ok(true);
+            }
         }
     }
-    Ok(did_update)
+    Ok(false)
 }
 
 /// If you can find `n` cells within a house such as that two candidates appear nowhere outside those cells in that house,
