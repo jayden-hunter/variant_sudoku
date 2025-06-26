@@ -74,8 +74,8 @@ pub(crate) fn locked_candidate(
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
-    let permutations = houses.iter().permutations(2);
-    for t in permutations {
+    let combinations = houses.iter().combinations(2);
+    for t in combinations {
         let (house1, house2) = match t.as_slice() {
             [h1, h2] => (h1, h2),
             _ => continue,
@@ -121,7 +121,7 @@ pub(crate) fn hidden_subset(
     houses: &HouseSet,
 ) -> Result<DidUpdateGrid, SudokuError> {
     debug!(
-        "Running Hidden Subset, Entropy is {:.2} ({:?}",
+        "Running Hidden Subset, Entropy is {:.2} ({:?})",
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
@@ -150,8 +150,9 @@ fn hidden_subset_house(
 ) -> Result<DidUpdateGrid, SudokuError> {
     let mut did_update = false;
     let candidates = get_house_candidates(sudoku, house)?;
-    let permutations = candidates.iter().permutations(num);
-    for combo in permutations {
+    let combinations = candidates.iter().combinations(num);
+    for combo in combinations {
+        debug!("Attempting Combo {combo:?}");
         // Check that the combo exist in the same `num` cells
         let found_cells_vec = combo
             .iter()
@@ -163,9 +164,14 @@ fn hidden_subset_house(
             continue;
         }
         // Found a match - we can remove all other candidates from these cells.
+        debug!("Found a Subset!");
         for cell in found_cells.into_iter() {
             let combo_symbols: Vec<Symbol> = combo.iter().copied().cloned().collect();
             did_update |= sudoku.keep_candidates(&cell, &combo_symbols)?;
+        }
+        debug!("Subset did_update {did_update}");
+        if did_update {
+            return Ok(true)
         }
     }
     Ok(did_update)

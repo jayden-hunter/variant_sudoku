@@ -155,7 +155,8 @@ impl Sudoku {
             "Candidates left after removal: {candidates_left:?}, Entropy is now {:.2}",
             self.get_entropy()
         );
-        self.notify(cell)
+        self.notify(cell)?;
+        Ok(true)
     }
 
     // Keeps the candidate as an option from that cell (similar to an intersection)
@@ -164,14 +165,15 @@ impl Sudoku {
         cell: &Cell,
         symbols_to_keep: &Candidates,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        trace!("Keeping Only {symbols_to_keep:?} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
         let before = cell_mut.clone();
+        debug!("Keeping Only {symbols_to_keep:?} from {cell:?}. Before {before:?}");
         cell_mut.0.retain(|f| symbols_to_keep.contains(f));
         if before == *cell_mut {
             return Ok(false);
         }
-        self.notify(cell)
+        self.notify(cell)?;
+        Ok(true)
     }
 
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
