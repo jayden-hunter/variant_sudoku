@@ -80,16 +80,14 @@ impl Constraint for HouseUnique {
 }
 
 fn get_row_houses(sudoku: &Sudoku) -> Vec<House> {
-    let rows = sudoku.board.rows();
-    let cols = sudoku.board.cols();
+    let (rows, cols) = sudoku.size();
     (0..cols)
         .map(|row| (0..rows).map(|col| Cell { row, col }).collect())
         .collect()
 }
 
 fn get_col_houses(sudoku: &Sudoku) -> Vec<House> {
-    let rows = sudoku.board.rows();
-    let cols = sudoku.board.cols();
+    let (rows, cols) = sudoku.size();
     (0..rows)
         .map(|col| (0..cols).map(|row| Cell { row, col }).collect())
         .collect()

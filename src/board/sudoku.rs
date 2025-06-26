@@ -10,8 +10,7 @@ use crate::{
     errors::SudokuError,
 };
 use std::{
-    fmt::{self, Debug, Display},
-    rc::Rc,
+    collections::{HashSet}, fmt::{self, Debug, Display}, rc::Rc
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -26,7 +25,8 @@ type Constraints = Vec<RcConstraint>;
 
 #[derive(Clone)]
 pub struct Sudoku {
-    pub(crate) board: Board,
+    board: Board,
+    valid_symbols: HashSet<Symbol>,
     pub(crate) constraints: Constraints,
 }
 
@@ -48,6 +48,10 @@ impl Sudoku {
 
     pub fn is_solved(&self) -> bool {
         self.board.iter().all(Digit::is_solved)
+    }
+
+    pub(crate) fn size(&self) -> (usize, usize) {
+        (self.board.rows(), self.board.cols())
     }
 
     pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
@@ -95,29 +99,31 @@ impl Sudoku {
         SolutionString(self.board.iter().map(Digit::get_char).collect())
     }
 
-    pub(crate) fn valid_symbols() -> Candidates {
-        vec![
-            Symbol('1'),
-            Symbol('2'),
-            Symbol('3'),
-            Symbol('4'),
-            Symbol('5'),
-            Symbol('6'),
-            Symbol('7'),
-            Symbol('8'),
-            Symbol('9'),
-        ]
+    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
+        let distinct_symbols = givens.rows().max(givens.cols());
+        let mut valid_symbols: HashSet<Symbol> = givens.iter().filter_map(|f| *f).collect();
+        let remaining_options = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".chars().into_iter().map(|f| Symbol(f));
+        for i in remaining_options {
+            if valid_symbols.len() == distinct_symbols {
+                break;
+            }
+            valid_symbols.insert(i);
+        }
+        Self::new_with_valid_digits(givens, constraints, valid_symbols)
     }
 
-    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
+    pub(crate) fn new_with_valid_digits(givens: Grid<Option<Symbol>>, constraints: Constraints, valid_symbols: HashSet<Symbol>) -> Self {
+        debug!("Givens {givens:?}");
         let (rows, cols) = givens.size();
-        let board = Grid::init(rows, cols, Digit(Self::valid_symbols()));
-        let mut sudoku = Sudoku { board, constraints };
+        let all_symbols_digit = Digit(valid_symbols.iter().cloned().collect());
+        let board = Grid::init(rows, cols,all_symbols_digit);
+        let mut sudoku = Sudoku { board, valid_symbols: valid_symbols, constraints };
+        debug!("New Sudoku created, with size {:?}, and valid symbols: {:?}", sudoku.size(), sudoku.valid_symbols);
         for (cell, symbol) in givens
             .indexed_iter()
             .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
         {
-            sudoku.place_digit(&cell, symbol).unwrap();
+            sudoku.place_digit(&cell, symbol);
         }
         sudoku
     }
@@ -135,7 +141,8 @@ impl Sudoku {
         }
         debug!("Placing {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})", self.get_entropy());
         *self.get_cell_mut(cell)? = digit.clone();
-        self.notify(cell)
+        self.notify(cell)?;
+        return Ok(true)
     }
 
     /// Removes the candidate as an option from that cell.
@@ -185,7 +192,7 @@ impl Sudoku {
     }
 
     pub(crate) fn get_entropy(&self) -> f64 {
-        let maximum = Self::valid_symbols().len() * self.board.rows() * self.board.cols();
+        let maximum = self.valid_symbols.len() * self.board.rows() * self.board.cols();
         let mut candidate_count = 0;
         for (_, d) in self.indexed_iter() {
             if d.0.is_empty() {
