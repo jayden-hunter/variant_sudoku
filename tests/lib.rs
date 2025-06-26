@@ -46,15 +46,17 @@ fn test_file(path: PathBuf) {
         .unwrap()
         .read_to_string(&mut string_buf)
         .expect("Failed to read file");
-    let mut sudoku: Sudoku =
-        serde_yaml::from_str(&string_buf.clone()).expect("Failed to parse YAML");
-    let expected_solution: YamlSolution =
-        serde_yaml::from_str(&string_buf.clone()).expect("Failed to parse YAML");
-    let expected_solution = match expected_solution.solution {
-        Some(v) => Solution::PreComputed(v.into()),
-        None => Solution::NoSolution,
-    };
-    test_game(&mut sudoku, expected_solution);
+    for _ in 0..100 {
+        let mut sudoku: Sudoku =
+            serde_yaml::from_str(&string_buf.clone()).expect("Failed to parse YAML");
+        let expected_solution: YamlSolution =
+            serde_yaml::from_str(&string_buf.clone()).expect("Failed to parse YAML");
+        let expected_solution = match expected_solution.solution {
+            Some(v) => Solution::PreComputed(v.into()),
+            None => Solution::NoSolution,
+        };
+        test_game(&mut sudoku, expected_solution);
+    }
 }
 
 #[cfg(test)]
@@ -88,8 +90,7 @@ mod tests {
 
     sudoku_test!(test_easy_standard);
     sudoku_test!(test_trivial_standard);
-
     sudoku_test!(test_locked_candidate_standard);
-
+    sudoku_test!(test_hidden_subset_standard);
     sudoku_test!(test_unsolveable_variants, SKIP);
 }
