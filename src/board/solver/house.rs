@@ -125,11 +125,11 @@ pub(crate) fn hidden_subset(
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
-    let max_house_size = houses.iter().map(|h| h.len()).max().ok_or_else(|| {
+    let max_house_size = houses.iter().filter_map(|h| get_house_candidates(sudoku, h).ok().map(|f| f.len())).max().ok_or_else(|| {
         SudokuError::UnsupportedConstraint("House must contain at least 1 Cell".to_owned())
     })?;
-    let max_subset_size = max_house_size.div_euclid(2);
-    trace!("Max House Size: {max_house_size}, Max Subset Size: {max_subset_size}");
+    let max_subset_size = max_house_size / 2;
+    debug!("Max House Size: {max_house_size}, Max Subset Size: {max_subset_size}");
     for subset_size in 2..=max_subset_size {
         for house in houses {
             let did_update = hidden_subset_house(sudoku, house, subset_size)?;

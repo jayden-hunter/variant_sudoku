@@ -3,7 +3,7 @@ use log::{debug, trace};
 
 use crate::{
     board::{
-        constraints::RcConstraint,
+        constraints::{standard::get_box_size, RcConstraint},
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
     },
@@ -39,6 +39,9 @@ impl Sudoku {
                 if self.is_solved() {
                     return Solution::UniqueSolution(self.clone())
                 }
+                if self.is_unsolveable() {
+                    return Solution::NoSolution
+                }
             }
             if !did_update {
                 return Solution::NoSolution;
@@ -48,6 +51,10 @@ impl Sudoku {
 
     pub fn is_solved(&self) -> bool {
         self.board.iter().all(Digit::is_solved)
+    }
+
+    pub fn is_unsolveable(&self) -> bool {
+        self.board.iter().any(|d| d.0.is_empty())
     }
 
     pub(crate) fn size(&self) -> (usize, usize) {
@@ -123,7 +130,7 @@ impl Sudoku {
             .indexed_iter()
             .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
         {
-            sudoku.place_digit(&cell, symbol);
+            sudoku.place_digit(&cell, symbol).unwrap();
         }
         sudoku
     }
@@ -210,12 +217,24 @@ impl Display for Sudoku {
             writeln!(f, "{}", self.to_string_line())?;
             return Ok(());
         }
+        let (board_rows, board_cols) = self.size();
+        let (box_height, box_width) = get_box_size((board_rows, board_cols)).unwrap();
+
         for (i, row) in self.board.iter_rows().enumerate() {
-            if i % 3 == 0 && i != 0 {
-                writeln!(f, "------+-------+------")?;
+            if i % box_height == 0 && i != 0 {
+                // Horizontal divider
+                let mut line = String::new();
+                for col in 0..board_cols {
+                    if col % box_width == 0 && col != 0 {
+                        line.push_str("+-");
+                    }
+                    line.push_str("--");
+                }
+                writeln!(f, "{}", line)?;
             }
+
             for (j, digit) in row.enumerate() {
-                if j % 3 == 0 && j != 0 {
+                if j % box_width == 0 && j != 0 {
                     write!(f, "| ")?;
                 }
                 write!(f, "{} ", digit)?;
