@@ -13,7 +13,7 @@ fn main() {
     setup_logging(&args);
     let path = File::open(args.path).unwrap();
     let mut sudoku: Sudoku = serde_yaml::from_reader(path).unwrap();
-    println!("Loaded:\n{}", sudoku);
+    println!("Loaded:\n{sudoku}");
     let start_time = time::Instant::now();
     let solved = sudoku.solve();
     let end_time = time::Instant::now();
@@ -22,7 +22,7 @@ fn main() {
         solved,
         end_time - start_time
     );
-    println!("{:#}", solved)
+    println!("{solved:#}")
 }
 
 fn setup_logging(args: &Args) {

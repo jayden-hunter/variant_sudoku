@@ -1,4 +1,4 @@
-use std::{any::Any, collections::{HashSet}};
+use std::{any::Any, collections::HashSet};
 
 use crate::{
     board::{
@@ -44,7 +44,7 @@ impl Constraint for HouseUnique {
         for (strategy, _) in HOUSE_STRATEGIES {
             let did_update = strategy(sudoku, &houses)?;
             if did_update {
-                return Ok(true)
+                return Ok(true);
             }
         }
         Ok(false)
@@ -95,10 +95,14 @@ fn get_col_houses(sudoku: &Sudoku) -> Vec<House> {
 
 pub(crate) fn get_box_size(size: (usize, usize)) -> Result<(usize, usize), SudokuError> {
     let ok = match size {
-        (9, 9) => (3,3),
-        (4, 4) => (2,2),
-        (6, 6) => (2,3), //2 rows, 3 cols
-        v => return Err(SudokuError::UnsupportedConstraint(format!("Invalid BoxUnique with grid of size {v:?}")))
+        (9, 9) => (3, 3),
+        (4, 4) => (2, 2),
+        (6, 6) => (2, 3), //2 rows, 3 cols
+        v => {
+            return Err(SudokuError::UnsupportedConstraint(format!(
+                "Invalid BoxUnique with grid of size {v:?}"
+            )))
+        }
     };
     Ok(ok)
 }
@@ -146,7 +150,7 @@ pub(crate) fn get_cells_in_house(
         if sudoku
             .get_cell(cell)?
             .try_get_candidates()
-            .map_or(false, |c| c.contains(symbol))
+            .is_some_and(|c| c.contains(symbol))
         {
             cells.push(*cell);
         }

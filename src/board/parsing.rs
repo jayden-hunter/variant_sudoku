@@ -61,9 +61,9 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
             parse_constraints(helper.constraints).map_err(serde::de::Error::custom)?;
         let sudoku = match helper.valid_digits {
             Some(v) => {
-                let valid_symbols = v.trim().chars().map(|f| Symbol(f)).collect();
+                let valid_symbols = v.trim().chars().map(Symbol).collect();
                 Sudoku::new_with_valid_digits(givens, constraints, valid_symbols)
-            },
+            }
             None => Sudoku::new(givens, constraints),
         };
         Ok(sudoku)
@@ -108,7 +108,7 @@ fn parse_constraints(
         .into_iter()
         .map(|constraint| match constraint {
             YamlConstraint::Standard => Ok(new_standard_constraints()),
-            e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
+            e => Err(SudokuError::UnsupportedConstraint(format!("{e:?}"))),
         })
         .collect::<Result<Vec<_>, _>>()?;
 

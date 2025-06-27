@@ -28,10 +28,7 @@ fn test_game(game: &mut Sudoku, expected_solution: Solution) {
         }
 
         (actual, expected) => {
-            panic!(
-                "Solution mismatch:\n  Expected: {:?}\n  Actual:   {:?}",
-                expected, actual
-            );
+            panic!("Solution mismatch:\n  Expected: {expected:?}\n  Actual:   {actual:?}");
         }
     }
 }
