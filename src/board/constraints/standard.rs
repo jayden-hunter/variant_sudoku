@@ -110,13 +110,16 @@ pub(crate) fn get_box_size(size: (usize, usize)) -> Result<(usize, usize), Sudok
 fn get_box_houses(sudoku: &Sudoku) -> Vec<House> {
     let mut houses = vec![];
     let (box_row_size, box_col_size) = get_box_size(sudoku.size()).unwrap();
-    for box_row in 0..box_row_size {
-        for box_col in 0..box_col_size {
-            let house: House = (0..box_col_size)
+    let (rows, cols) = sudoku.size();
+    let num_box_rows = rows / box_row_size;
+    let num_box_cols = cols / box_col_size;
+    for box_row in 0..num_box_rows {
+        for box_col in 0..num_box_cols {
+            let house: House = (0..box_row_size)
                 .flat_map(|r| {
-                    (0..box_row_size).map(move |c| Cell {
-                        row: box_row * box_col_size + r,
-                        col: box_col * box_row_size + c,
+                    (0..box_col_size).map(move |c| Cell {
+                        row: box_row * box_row_size + r,
+                        col: box_col * box_col_size + c,
                     })
                 })
                 .collect();
