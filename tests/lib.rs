@@ -28,10 +28,7 @@ fn test_game(game: &mut Sudoku, expected_solution: Solution) {
         }
 
         (actual, expected) => {
-            panic!(
-                "Solution mismatch:\n  Expected: {:?}\n  Actual:   {:?}",
-                expected, actual
-            );
+            panic!("Solution mismatch:\n  Expected: {expected:?}\n  Actual:   {actual:?}");
         }
     }
 }
@@ -94,6 +91,8 @@ mod tests {
     sudoku_test!(test_hidden_subset_standard);
     sudoku_test!(test_medium_standard);
     sudoku_test!(test_hard_standard, SKIP);
+    sudoku_test!(test_4x4_standard);
+    sudoku_test!(test_6x6_standard);
     sudoku_test!(test_unsolveable_standard);
     sudoku_test!(test_unsolveable_variants, SKIP);
 }

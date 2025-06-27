@@ -15,6 +15,7 @@ use crate::{
 #[derive(Deserialize)]
 struct YamlSudoku {
     board: String,
+    valid_digits: Option<String>,
     constraints: Option<Vec<YamlConstraint>>,
 }
 
@@ -58,7 +59,14 @@ impl<'de> serde::de::Deserialize<'de> for Sudoku {
         let givens = helper.generate_given_board();
         let constraints =
             parse_constraints(helper.constraints).map_err(serde::de::Error::custom)?;
-        Ok(Sudoku::new(givens, constraints))
+        let sudoku = match helper.valid_digits {
+            Some(v) => {
+                let valid_symbols = v.trim().chars().map(Symbol).collect();
+                Sudoku::new_with_valid_digits(givens, constraints, valid_symbols)
+            }
+            None => Sudoku::new(givens, constraints),
+        };
+        Ok(sudoku)
     }
 }
 
@@ -77,7 +85,8 @@ impl YamlSudoku {
                 })
             })
             .collect::<Vec<Option<Symbol>>>();
-        Grid::from_vec(cells, 9)
+        let cols = cells.len().isqrt();
+        Grid::from_vec(cells, cols)
     }
 }
 
@@ -99,7 +108,7 @@ fn parse_constraints(
         .into_iter()
         .map(|constraint| match constraint {
             YamlConstraint::Standard => Ok(new_standard_constraints()),
-            e => Err(SudokuError::UnsupportedConstraint(format!("{:?}", e))),
+            e => Err(SudokuError::UnsupportedConstraint(format!("{e:?}"))),
         })
         .collect::<Result<Vec<_>, _>>()?;
 

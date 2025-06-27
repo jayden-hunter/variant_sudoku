@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use log::{debug, trace};
+use log::debug;
 
 use crate::{
     board::{
@@ -34,7 +34,7 @@ pub(crate) fn hidden_single(
     for house in houses {
         let did_update = hidden_single_house(sudoku, house)?;
         if did_update {
-            return Ok(true)
+            return Ok(true);
         }
     }
     Ok(false)
@@ -82,7 +82,7 @@ pub(crate) fn locked_candidate(
         };
         let did_update = locked_candidate_houses(sudoku, house1, house2)?;
         if did_update {
-            return Ok(true)
+            return Ok(true);
         }
     }
     Ok(false)
@@ -125,11 +125,15 @@ pub(crate) fn hidden_subset(
         sudoku.get_entropy(),
         sudoku.to_string_line()
     );
-    let max_house_size = houses.iter().map(|h| h.len()).max().ok_or_else(|| {
-        SudokuError::UnsupportedConstraint("House must contain at least 1 Cell".to_owned())
-    })?;
-    let max_subset_size = max_house_size.div_euclid(2);
-    trace!("Max House Size: {max_house_size}, Max Subset Size: {max_subset_size}");
+    let max_house_size = houses
+        .iter()
+        .filter_map(|h| get_house_candidates(sudoku, h).ok().map(|f| f.len()))
+        .max()
+        .ok_or_else(|| {
+            SudokuError::UnsupportedConstraint("House must contain at least 1 Cell".to_owned())
+        })?;
+    let max_subset_size = max_house_size / 2;
+    debug!("Max House Size: {max_house_size}, Max Subset Size: {max_subset_size}");
     for subset_size in 2..=max_subset_size {
         for house in houses {
             let did_update = hidden_subset_house(sudoku, house, subset_size)?;
@@ -171,7 +175,7 @@ fn hidden_subset_house(
         }
         debug!("Subset did_update {did_update}");
         if did_update {
-            return Ok(true)
+            return Ok(true);
         }
     }
     Ok(did_update)

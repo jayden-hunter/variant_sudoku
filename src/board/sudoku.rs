@@ -3,13 +3,14 @@ use log::{debug, trace};
 
 use crate::{
     board::{
-        constraints::RcConstraint,
+        constraints::{standard::get_box_size, RcConstraint},
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
     },
     errors::SudokuError,
 };
 use std::{
+    collections::HashSet,
     fmt::{self, Debug, Display},
     rc::Rc,
 };
@@ -26,7 +27,8 @@ type Constraints = Vec<RcConstraint>;
 
 #[derive(Clone)]
 pub struct Sudoku {
-    pub(crate) board: Board,
+    board: Board,
+    valid_symbols: HashSet<Symbol>,
     pub(crate) constraints: Constraints,
 }
 
@@ -37,7 +39,10 @@ impl Sudoku {
             for constraint in self.constraints.clone() {
                 did_update |= constraint.use_strategies(self).unwrap();
                 if self.is_solved() {
-                    return Solution::UniqueSolution(self.clone())
+                    return Solution::UniqueSolution(self.clone());
+                }
+                if self.is_unsolveable() {
+                    return Solution::NoSolution;
                 }
             }
             if !did_update {
@@ -48,6 +53,14 @@ impl Sudoku {
 
     pub fn is_solved(&self) -> bool {
         self.board.iter().all(Digit::is_solved)
+    }
+
+    pub fn is_unsolveable(&self) -> bool {
+        self.board.iter().any(|d| d.0.is_empty())
+    }
+
+    pub(crate) fn size(&self) -> (usize, usize) {
+        (self.board.rows(), self.board.cols())
     }
 
     pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
@@ -95,24 +108,40 @@ impl Sudoku {
         SolutionString(self.board.iter().map(Digit::get_char).collect())
     }
 
-    pub(crate) fn valid_symbols() -> Candidates {
-        vec![
-            Symbol('1'),
-            Symbol('2'),
-            Symbol('3'),
-            Symbol('4'),
-            Symbol('5'),
-            Symbol('6'),
-            Symbol('7'),
-            Symbol('8'),
-            Symbol('9'),
-        ]
+    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
+        let distinct_symbols = givens.rows().max(givens.cols());
+        let mut valid_symbols: HashSet<Symbol> = givens.iter().filter_map(|f| *f).collect();
+        let remaining_options = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+            .chars()
+            .map(Symbol);
+        for i in remaining_options {
+            if valid_symbols.len() == distinct_symbols {
+                break;
+            }
+            valid_symbols.insert(i);
+        }
+        Self::new_with_valid_digits(givens, constraints, valid_symbols)
     }
 
-    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
+    pub(crate) fn new_with_valid_digits(
+        givens: Grid<Option<Symbol>>,
+        constraints: Constraints,
+        valid_symbols: HashSet<Symbol>,
+    ) -> Self {
+        debug!("Givens {givens:?}");
         let (rows, cols) = givens.size();
-        let board = Grid::init(rows, cols, Digit(Self::valid_symbols()));
-        let mut sudoku = Sudoku { board, constraints };
+        let all_symbols_digit = Digit(valid_symbols.iter().cloned().collect());
+        let board = Grid::init(rows, cols, all_symbols_digit);
+        let mut sudoku = Sudoku {
+            board,
+            valid_symbols,
+            constraints,
+        };
+        debug!(
+            "New Sudoku created, with size {:?}, and valid symbols: {:?}",
+            sudoku.size(),
+            sudoku.valid_symbols
+        );
         for (cell, symbol) in givens
             .indexed_iter()
             .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
@@ -133,9 +162,13 @@ impl Sudoku {
         if *before == digit {
             return Ok(false);
         }
-        debug!("Placing {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})", self.get_entropy());
+        debug!(
+            "Placing {symbol:?} in {cell:?} -> Beforehand is {before:?} (Entropy is now {:.2})",
+            self.get_entropy()
+        );
         *self.get_cell_mut(cell)? = digit.clone();
-        self.notify(cell)
+        self.notify(cell)?;
+        Ok(true)
     }
 
     /// Removes the candidate as an option from that cell.
@@ -185,11 +218,11 @@ impl Sudoku {
     }
 
     pub(crate) fn get_entropy(&self) -> f64 {
-        let maximum = Self::valid_symbols().len() * self.board.rows() * self.board.cols();
+        let maximum = self.valid_symbols.len() * self.board.rows() * self.board.cols();
         let mut candidate_count = 0;
         for (_, d) in self.indexed_iter() {
             if d.0.is_empty() {
-                return -1.0
+                return -1.0;
             }
             candidate_count += d.0.len() - 1;
         }
@@ -203,15 +236,27 @@ impl Display for Sudoku {
             writeln!(f, "{}", self.to_string_line())?;
             return Ok(());
         }
+        let (board_rows, board_cols) = self.size();
+        let (box_height, box_width) = get_box_size((board_rows, board_cols)).unwrap();
+
         for (i, row) in self.board.iter_rows().enumerate() {
-            if i % 3 == 0 && i != 0 {
-                writeln!(f, "------+-------+------")?;
+            if i % box_height == 0 && i != 0 {
+                // Horizontal divider
+                let mut line = String::new();
+                for col in 0..board_cols {
+                    if col % box_width == 0 && col != 0 {
+                        line.push_str("+-");
+                    }
+                    line.push_str("--");
+                }
+                writeln!(f, "{line}")?;
             }
+
             for (j, digit) in row.enumerate() {
-                if j % 3 == 0 && j != 0 {
+                if j % box_width == 0 && j != 0 {
                     write!(f, "| ")?;
                 }
-                write!(f, "{} ", digit)?;
+                write!(f, "{digit} ")?;
             }
             writeln!(f)?;
         }

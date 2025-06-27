@@ -44,7 +44,7 @@ impl Constraint for HouseUnique {
         for (strategy, _) in HOUSE_STRATEGIES {
             let did_update = strategy(sudoku, &houses)?;
             if did_update {
-                return Ok(true)
+                return Ok(true);
             }
         }
         Ok(false)
@@ -80,30 +80,46 @@ impl Constraint for HouseUnique {
 }
 
 fn get_row_houses(sudoku: &Sudoku) -> Vec<House> {
-    let rows = sudoku.board.rows();
-    let cols = sudoku.board.cols();
+    let (rows, cols) = sudoku.size();
     (0..cols)
         .map(|row| (0..rows).map(|col| Cell { row, col }).collect())
         .collect()
 }
 
 fn get_col_houses(sudoku: &Sudoku) -> Vec<House> {
-    let rows = sudoku.board.rows();
-    let cols = sudoku.board.cols();
+    let (rows, cols) = sudoku.size();
     (0..rows)
         .map(|col| (0..cols).map(|row| Cell { row, col }).collect())
         .collect()
 }
 
-fn get_box_houses(_sudoku: &Sudoku) -> Vec<House> {
+pub(crate) fn get_box_size(size: (usize, usize)) -> Result<(usize, usize), SudokuError> {
+    let ok = match size {
+        (9, 9) => (3, 3),
+        (4, 4) => (2, 2),
+        (6, 6) => (2, 3), //2 rows, 3 cols
+        v => {
+            return Err(SudokuError::UnsupportedConstraint(format!(
+                "Invalid BoxUnique with grid of size {v:?}"
+            )))
+        }
+    };
+    Ok(ok)
+}
+
+fn get_box_houses(sudoku: &Sudoku) -> Vec<House> {
     let mut houses = vec![];
-    for box_row in 0..3 {
-        for box_col in 0..3 {
-            let house: House = (0..3)
+    let (box_row_size, box_col_size) = get_box_size(sudoku.size()).unwrap();
+    let (rows, cols) = sudoku.size();
+    let num_box_rows = rows / box_row_size;
+    let num_box_cols = cols / box_col_size;
+    for box_row in 0..num_box_rows {
+        for box_col in 0..num_box_cols {
+            let house: House = (0..box_row_size)
                 .flat_map(|r| {
-                    (0..3).map(move |c| Cell {
-                        row: box_row * 3 + r,
-                        col: box_col * 3 + c,
+                    (0..box_col_size).map(move |c| Cell {
+                        row: box_row * box_row_size + r,
+                        col: box_col * box_col_size + c,
                     })
                 })
                 .collect();
@@ -137,7 +153,7 @@ pub(crate) fn get_cells_in_house(
         if sudoku
             .get_cell(cell)?
             .try_get_candidates()
-            .map_or(false, |c| c.contains(symbol))
+            .is_some_and(|c| c.contains(symbol))
         {
             cells.push(*cell);
         }
