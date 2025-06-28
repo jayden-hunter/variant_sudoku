@@ -68,7 +68,7 @@ impl Sudoku {
         self.board.iter().any(|d| d.0.is_empty())
     }
 
-    pub(crate) fn size(&self) -> (usize, usize) {
+    pub fn size(&self) -> (usize, usize) {
         (self.board.rows(), self.board.cols())
     }
 
