@@ -6,7 +6,7 @@ use log::{debug, trace};
 use crate::{
     board::{
         constraints::standard::House,
-        digit::{self, Symbol},
+        digit::Symbol,
         sudoku::{Cell, DidUpdateGrid},
     },
     errors::SudokuError,
@@ -51,27 +51,22 @@ impl Constraint for Killer {
         sudoku: &mut Sudoku,
         cell: &Cell,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        debug!("Killer Notify Update");
-        // Let's notify any cages that contain this cell.
-        let mut did_update = false;
-        let digit = sudoku.get_cell(cell)?.clone();
-        for cage in &self.cages {
-            if let Some(s) = digit.try_get_solved() {
-                for c in &cage.cells {
-                    if c == cell {
-                        continue;
-                    }
-                    did_update |= sudoku.remove_candidate(cell, s)?;
-                }
+        let cage = match self.cages.iter().find(|c| c.cells.contains(cell)) {
+            Some(c) => c,
+            None => {
+                trace!("Cell {cell:?} is not part of any Killer Cage");
+                return Ok(false);
             }
-            if cage.cells.contains(cell) {
-                did_update |= cage.notify_cage(sudoku)?;
-                if did_update {
-                    return Ok(true);
-                }
+        };
+        let digit = sudoku.get_cell(cell)?.clone();
+        let mut did_update = false;
+        if let Some(s) = digit.try_get_solved() {
+            for c in cage.cells.iter().filter(|c| *c != cell) {
+                debug!("Removing {s:?} from cell {c:?} in cage {cage:?}, because it already exists in {cell:?}");
+                did_update |= sudoku.remove_candidate(c, s)?;
             }
         }
-        Ok(false)
+        Ok(did_update)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -79,7 +74,14 @@ impl Constraint for Killer {
     }
 
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<DidUpdateGrid, SudokuError> {
-        // Uniqueness is handled by HouseUnique for Killer
+        debug!("Killer Notify Update");
+        let mut did_update = false;
+        for cage in &self.cages {
+            did_update |= cage.notify_cage(sudoku)?;
+            if did_update {
+                return Ok(true);
+            }
+        }
         Ok(false)
     }
 }
@@ -89,15 +91,13 @@ impl Cage {
         trace!("KillerCage Notify Update");
         let mut did_update = false;
         let possible_candidates = self.marking.get_possible_candidates(self, sudoku)?;
-        let unsolved_cells: Vec<_> = self
+        let unsolved_cells: Vec<Cell> = self
             .cells
             .iter()
             .filter(|c| sudoku.get_cell(c).is_ok_and(|f| !f.is_solved()))
+            .map(|c| *c)
             .collect();
-        for cell in unsolved_cells {
-            did_update |= sudoku.keep_candidates(cell, &possible_candidates)?;
-        }
-
+        did_update |= sudoku.keep_candidates(unsolved_cells, &possible_candidates)?;
         Ok(did_update)
     }
     fn get_sum_options(&self, sudoku: &mut Sudoku, cage_sum: u32) -> HashSet<Symbol> {

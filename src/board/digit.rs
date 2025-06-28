@@ -5,7 +5,7 @@ pub type Candidates = Vec<Symbol>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digit(pub Candidates);
 
-#[derive(Clone, Copy, PartialEq, Eq, Default, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Symbol(pub char);
 
 impl Symbol {
@@ -63,6 +63,12 @@ impl Display for Digit {
 }
 
 impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

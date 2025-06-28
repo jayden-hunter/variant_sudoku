@@ -93,6 +93,7 @@ mod tests {
     sudoku_test!(test_hard_standard, SKIP);
     sudoku_test!(test_4x4_standard);
     sudoku_test!(test_6x6_standard);
+    sudoku_test!(test_easy_killer);
     sudoku_test!(test_unsolveable_standard);
     sudoku_test!(test_unsolveable_variants, SKIP);
 }

@@ -1,5 +1,5 @@
 use grid::Grid;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 
 use crate::{
     board::{
@@ -46,39 +46,33 @@ impl Sudoku {
     }
 
     pub fn solve(&mut self) -> Result<Solution, SudokuError> {
-        let candidate_cells = self.board.clone().indexed_into_iter();
-        for ((r, c), _) in candidate_cells {
-            self.notify(&Cell { row: r, col: c })?;
-        }
         loop {
-            let mut did_any_update = false;
-            for constraint in self.constraints.clone() {
-                let did_update = constraint.use_strategies(self)?;
-                if did_update {
-                    did_any_update = true;
-                    if self.is_solved() {
-                        return Ok(Solution::UniqueSolution(self.clone()));
-                    }
-                    if self.is_unsolveable() {
-                        debug!(
-                            "Unsolveable, here is sudoku at end: {:?}",
-                            self.to_string_line()
-                        );
-                        return Ok(Solution::NoSolution);
-                    }
-                }
-            }
+            debug!("Sudoku after iteration: {:?}", self.to_string_line());
             if self.is_solved() {
                 return Ok(Solution::UniqueSolution(self.clone()));
             }
-            if !did_any_update {
+            if self.is_unsolveable() {
                 debug!(
-                    "No Updates this round, here is sudoku at end: {:?}",
+                    "Unsolveable, here is sudoku at end: {:?}",
                     self.to_string_line()
                 );
                 return Ok(Solution::NoSolution);
             }
-            debug!("Sudoku after iteration: {:?}", self.to_string_line());
+            let mut did_update = false;
+            for constraint in self.constraints.clone() {
+                did_update |= constraint.use_strategies(self)?;
+                if did_update {
+                    break;
+                }
+            }
+            if !did_update {
+                debug!(
+                "No Updates this round, here is sudoku at end: {:?}",
+                self.to_string_line()
+            );
+            return Ok(Solution::NoSolution);
+            }
+
         }
     }
 
@@ -209,8 +203,12 @@ impl Sudoku {
         cell: &Cell,
         symbol_to_remove: &Symbol,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        debug!("Removing {symbol_to_remove:?} from {cell:?}");
+        debug!("Removing {symbol_to_remove:#} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
+        // if cell_mut.0.len() == 1 {
+        //     warn!("Cannot remove {symbol_to_remove:#} from {cell:?}, it is already solved with {cell_mut:?}");
+        //     return Ok(false);
+        // }
         if !cell_mut.0.contains(symbol_to_remove) {
             return Ok(false);
         }
@@ -220,32 +218,48 @@ impl Sudoku {
             "Candidates left after removal: {candidates_left:?}, Entropy is now {:.2}",
             self.get_entropy()
         );
+        if candidates_left.is_empty() {
+            warn!("No candidates left in {cell:?}, this is unsolveable");
+            return Ok(true);
+        }
+        
         self.notify(cell)?;
         Ok(true)
     }
 
     // Keeps the candidate as an option from that cell (similar to an intersection)
-    pub fn keep_candidates(
-        &mut self,
-        cell: &Cell,
-        symbols_to_keep: &Candidates,
-    ) -> Result<DidUpdateGrid, SudokuError> {
-        let cell_mut = self.get_cell_mut(cell)?;
-        let before = cell_mut.clone();
-        debug!("Keeping Only {symbols_to_keep:?} from {cell:?}. Before {before:?}");
-        cell_mut.0.retain(|f| symbols_to_keep.contains(f));
-        if before == *cell_mut {
-            return Ok(false);
+    pub fn keep_candidates<I>(&mut self, cells: I, symbols_to_keep: &Candidates) -> Result<DidUpdateGrid, SudokuError>
+    where
+        I: IntoIterator<Item = Cell> + Clone,
+    {
+        let mut did_update = false;
+        let mut needs_notification = vec![];
+        for cell in cells.clone() {
+            let cell_mut = self.get_cell_mut(&cell)?;
+            let before = cell_mut.clone();
+            debug!("Keeping Only {symbols_to_keep:?} from {cell:?}. Before {before:?}");
+            cell_mut.0.retain(|f| symbols_to_keep.contains(f));
+            if before != *cell_mut {
+                did_update = true;
+                needs_notification.push(cell);
+            }
         }
-        self.notify(cell)?;
-        Ok(true)
+        debug!(
+            "Candidates left after keeping: {:?}, Entropy is now {:.2}. Did update: {}",
+            symbols_to_keep,
+            self.get_entropy(),
+            did_update
+        );
+        for cell in needs_notification {
+            did_update |= self.notify(&cell)?;
+        }
+        Ok(did_update)
     }
 
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
         let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
              did_update |= constraint.notify_update(self, cell)?;
-            
         }
         Ok(did_update)
     }
@@ -263,6 +277,7 @@ impl Sudoku {
     }
 
     /// Returns an empty vector if the sudoku has no regions.
+    #[allow(dead_code)]
     pub(crate) fn get_houses(&self) -> HouseSet {
         self.constraints
             .iter()

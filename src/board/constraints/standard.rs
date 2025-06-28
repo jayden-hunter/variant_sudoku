@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashSet};
 
-use log::{debug, trace};
+use log::trace;
 
 use crate::{
     board::{
@@ -61,7 +61,7 @@ impl Constraint for HouseUnique {
         sudoku: &mut Sudoku,
         cell: &Cell,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        debug!("HouseUnique Notify Update for cell {cell:?}");
+        trace!("HouseUnique Notify Update for cell {cell:?}");
         let mut did_update = false;
         // Check if the cell is solved.
         let digit = sudoku.get_cell(cell)?.clone();
