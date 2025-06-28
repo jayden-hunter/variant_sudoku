@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use log::debug;
+use log::{debug, trace};
 
 use crate::{
     board::{
@@ -95,7 +95,6 @@ fn locked_candidate_houses(
     house1: &House,
     house2: &House,
 ) -> Result<DidUpdateGrid, SudokuError> {
-    let mut did_update = false;
     let candidates1 = get_house_candidates(sudoku, house1)?;
     for symbol in candidates1 {
         let h1_candidate_cells = get_cells_in_house(sudoku, house1, &symbol)?;
@@ -110,10 +109,13 @@ fn locked_candidate_houses(
             .iter()
             .filter(|c| !h1_candidate_cells.contains(c))
         {
-            did_update |= sudoku.remove_candidate(cell, &symbol)?;
+            let did_update = sudoku.remove_candidate(cell, &symbol)?;
+            if did_update {
+                return Ok(true);
+            }
         }
     }
-    Ok(did_update)
+    Ok(false)
 }
 
 pub(crate) fn hidden_subset(
@@ -156,7 +158,7 @@ fn hidden_subset_house(
     let candidates = get_house_candidates(sudoku, house)?;
     let combinations = candidates.iter().combinations(num);
     for combo in combinations {
-        debug!("Attempting Combo {combo:?}");
+        trace!("Attempting Combo {combo:?}");
         // Check that the combo exist in the same `num` cells
         let found_cells_vec = combo
             .iter()

@@ -1,0 +1,90 @@
+---
+board: |
+  ......
+  ......
+  ......
+  ......
+  ......
+  ......
+
+solution: 132546564312326451415263241635653124
+
+constraints:
+  - name: standard
+  - name: killer
+    cages:
+      - cells:
+        - [0, 0]
+        - [0, 1]
+        - [0, 2]
+        value: 6
+        operation: sum
+      - cells:
+        - [0, 3]
+        - [1, 3]
+        - [2, 3]
+        - [2, 2]
+        value: 18
+        operation: sum
+      - cells:
+        - [0, 4]
+        - [0, 5]
+        - [1, 5]
+        - [2, 5]
+        value: 13
+        operation: sum
+      - cells:
+        - [1, 0]
+        - [2, 0]
+        - [2, 1]
+        value: 10
+        operation: sum
+      - cells:
+        - [1, 1]
+        - [1, 2]
+        value: 10
+        operation: sum
+      - cells:
+        - [1, 4]
+        - [2, 4]
+        - [3, 4]
+        - [3, 3]
+        value: 14
+        operation: sum
+      - cells:
+        - [3, 0]
+        - [4, 0]
+        - [5, 0]
+        value: 12
+        operation: sum
+      - cells:
+        - [3, 1]
+        - [3, 2]
+        value: 6
+        operation: sum
+      - cells:
+        - [3, 5]
+        - [4, 5]
+        value: 8
+        operation: sum
+      - cells:
+        - [4, 1]
+        - [5, 1]
+        value: 9
+        operation: sum
+      - cells:
+        - [4, 2]
+        - [5, 2]
+        value: 4
+        operation: sum
+      - cells:
+        - [4, 4]
+        - [4, 3]
+        - [5, 3]
+        value: 10
+        operation: sum
+      - cells:
+        - [5, 4]
+        - [5, 5]
+        value: 6
+        operation: sum

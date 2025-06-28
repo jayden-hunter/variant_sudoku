@@ -1,5 +1,7 @@
 use std::{any::Any, collections::HashSet};
 
+use log::{debug, trace};
+
 use crate::{
     board::{
         digit::Symbol,
@@ -22,7 +24,7 @@ pub(crate) enum HouseUnique {
 
 pub(crate) type House = Vec<Cell>;
 impl HouseUnique {
-    fn get_houses(&self, sudoku: &Sudoku) -> Vec<House> {
+    pub(crate) fn get_houses(&self, sudoku: &Sudoku) -> Vec<House> {
         match self {
             HouseUnique::Row => get_row_houses(sudoku),
             HouseUnique::Col => get_col_houses(sudoku),
@@ -59,12 +61,12 @@ impl Constraint for HouseUnique {
         sudoku: &mut Sudoku,
         cell: &Cell,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        let mut did_update = false;
+        trace!("HouseUnique Notify Update for cell {cell:?}");
         // Check if the cell is solved.
         let digit = sudoku.get_cell(cell)?.clone();
         let symbol_to_remove_from_house = match digit.try_get_solved() {
             Some(s) => s,
-            None => return Ok(did_update),
+            None => return Ok(false),
         };
         let houses = self.get_houses(sudoku);
         let cells = houses
@@ -73,9 +75,12 @@ impl Constraint for HouseUnique {
             .flatten()
             .filter(|f| *f != cell);
         for c in cells {
-            did_update |= sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
+            let did_update = sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
+            if did_update {
+                return Ok(true);
+            }
         }
-        Ok(did_update)
+        Ok(false)
     }
 }
 

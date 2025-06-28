@@ -15,7 +15,7 @@ fn main() {
     let mut sudoku: Sudoku = serde_yaml::from_reader(path).unwrap();
     println!("Loaded:\n{sudoku}");
     let start_time = time::Instant::now();
-    let solved = sudoku.solve();
+    let solved = sudoku.solve().expect("Failed to solve Sudoku");
     let end_time = time::Instant::now();
     println!(
         "Solved Sudoku:\n{}\nTook: {:.?}",

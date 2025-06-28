@@ -3,7 +3,10 @@ use log::{debug, trace};
 
 use crate::{
     board::{
-        constraints::{standard::get_box_size, RcConstraint},
+        constraints::{
+            standard::{get_box_size, HouseSet, HouseUnique},
+            RcConstraint,
+        },
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
     },
@@ -28,7 +31,7 @@ type Constraints = Vec<RcConstraint>;
 #[derive(Clone)]
 pub struct Sudoku {
     board: Board,
-    valid_symbols: HashSet<Symbol>,
+    pub(crate) valid_symbols: HashSet<Symbol>,
     pub(crate) constraints: Constraints,
 }
 
@@ -42,21 +45,40 @@ impl Sudoku {
         }
     }
 
-    pub fn solve(&mut self) -> Solution {
+    pub fn solve(&mut self) -> Result<Solution, SudokuError> {
+        let candidate_cells = self.board.clone().indexed_into_iter();
+        for ((r, c), _) in candidate_cells {
+            self.notify(&Cell { row: r, col: c })?;
+        }
         loop {
-            let mut did_update = false;
+            let mut did_any_update = false;
             for constraint in self.constraints.clone() {
-                did_update |= constraint.use_strategies(self).unwrap();
-                if self.is_solved() {
-                    return Solution::UniqueSolution(self.clone());
-                }
-                if self.is_unsolveable() {
-                    return Solution::NoSolution;
+                let did_update = constraint.use_strategies(self)?;
+                if did_update {
+                    did_any_update = true;
+                    if self.is_solved() {
+                        return Ok(Solution::UniqueSolution(self.clone()));
+                    }
+                    if self.is_unsolveable() {
+                        debug!(
+                            "Unsolveable, here is sudoku at end: {:?}",
+                            self.to_string_line()
+                        );
+                        return Ok(Solution::NoSolution);
+                    }
                 }
             }
-            if !did_update {
-                return Solution::NoSolution;
+            if self.is_solved() {
+                return Ok(Solution::UniqueSolution(self.clone()));
             }
+            if !did_any_update {
+                debug!(
+                    "No Updates this round, here is sudoku at end: {:?}",
+                    self.to_string_line()
+                );
+                return Ok(Solution::NoSolution);
+            }
+            debug!("Sudoku after iteration: {:?}", self.to_string_line());
         }
     }
 
@@ -98,7 +120,7 @@ impl Sudoku {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn indexed_candidate_iter(&self) -> impl Iterator<Item = (Cell, &Candidates)> {
+    pub(crate) fn indexed_candidates(&self) -> Vec<(Cell, &Candidates)> {
         self.board
             .indexed_iter()
             .map(|(cell, digit)| {
@@ -111,6 +133,7 @@ impl Sudoku {
                 )
             })
             .filter_map(|(c, d)| d.try_get_candidates().map(|v| (c, v)))
+            .collect()
     }
 
     pub fn to_string_line(&self) -> SolutionString {
@@ -186,7 +209,7 @@ impl Sudoku {
         cell: &Cell,
         symbol_to_remove: &Symbol,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        trace!("Removing {symbol_to_remove:?} from {cell:?}");
+        debug!("Removing {symbol_to_remove:?} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
         if !cell_mut.0.contains(symbol_to_remove) {
             return Ok(false);
@@ -219,11 +242,13 @@ impl Sudoku {
     }
 
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
-        let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
-            did_update |= constraint.notify_update(self, cell)?;
+            let did_update = constraint.notify_update(self, cell)?;
+            if did_update {
+                return Ok(true);
+            }
         }
-        Ok(did_update)
+        Ok(false)
     }
 
     pub(crate) fn get_entropy(&self) -> f64 {
@@ -236,6 +261,15 @@ impl Sudoku {
             candidate_count += d.0.len() - 1;
         }
         candidate_count as f64 / maximum as f64
+    }
+
+    /// Returns an empty vector if the sudoku has no regions.
+    pub(crate) fn get_houses(&self) -> HouseSet {
+        self.constraints
+            .iter()
+            .filter_map(|c| c.as_any().downcast_ref::<HouseUnique>())
+            .flat_map(|house| house.get_houses(self))
+            .collect()
     }
 }
 
