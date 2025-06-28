@@ -4,6 +4,7 @@ pub type Candidates = Vec<Symbol>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digit(pub Candidates);
+pub struct Digit(pub Candidates);
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Symbol(pub char);

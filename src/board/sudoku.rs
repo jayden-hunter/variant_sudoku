@@ -85,15 +85,18 @@ impl Sudoku {
     }
 
     pub fn size(&self) -> (usize, usize) {
+    pub fn size(&self) -> (usize, usize) {
         (self.board.rows(), self.board.cols())
     }
 
+    pub fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
     pub fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
         self.board
             .get(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
+    pub fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
     pub fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
         self.board
             .get_mut(cell.row, cell.col)
