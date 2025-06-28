@@ -61,7 +61,8 @@ impl Constraint for HouseUnique {
         sudoku: &mut Sudoku,
         cell: &Cell,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        trace!("HouseUnique Notify Update for cell {cell:?}");
+        debug!("HouseUnique Notify Update for cell {cell:?}");
+        let mut did_update = false;
         // Check if the cell is solved.
         let digit = sudoku.get_cell(cell)?.clone();
         let symbol_to_remove_from_house = match digit.try_get_solved() {
@@ -75,12 +76,9 @@ impl Constraint for HouseUnique {
             .flatten()
             .filter(|f| *f != cell);
         for c in cells {
-            let did_update = sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
-            if did_update {
-                return Ok(true);
-            }
+            did_update |= sudoku.remove_candidate(c, symbol_to_remove_from_house)?;
         }
-        Ok(false)
+        Ok(did_update)
     }
 }
 

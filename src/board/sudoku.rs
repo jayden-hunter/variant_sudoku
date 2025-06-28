@@ -242,13 +242,12 @@ impl Sudoku {
     }
 
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
+        let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
-            let did_update = constraint.notify_update(self, cell)?;
-            if did_update {
-                return Ok(true);
-            }
+             did_update |= constraint.notify_update(self, cell)?;
+            
         }
-        Ok(false)
+        Ok(did_update)
     }
 
     pub(crate) fn get_entropy(&self) -> f64 {
