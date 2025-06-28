@@ -33,6 +33,15 @@ pub struct Sudoku {
 }
 
 impl Sudoku {
+    pub fn empty() -> Self {
+        let digit = Digit(vec![Symbol('0')]);
+        Sudoku {
+            board: Grid::init(9, 9, digit),
+            valid_symbols: HashSet::new(),
+            constraints: Vec::new(),
+        }
+    }
+
     pub fn solve(&mut self) -> Solution {
         loop {
             let mut did_update = false;
@@ -63,13 +72,13 @@ impl Sudoku {
         (self.board.rows(), self.board.cols())
     }
 
-    pub(crate) fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
+    pub fn get_cell(&self, cell: &Cell) -> Result<&Digit, SudokuError> {
         self.board
             .get(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))
     }
 
-    pub(crate) fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
+    pub fn get_cell_mut(&mut self, cell: &Cell) -> Result<&mut Digit, SudokuError> {
         self.board
             .get_mut(cell.row, cell.col)
             .ok_or(SudokuError::OutOfBoundsAccess(*cell))

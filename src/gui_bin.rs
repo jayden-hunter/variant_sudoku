@@ -2,6 +2,15 @@
 #![allow(rustdoc::missing_crate_level_docs)] // it's an example
 
 use eframe::egui;
+use egui_extras::{Column, TableBuilder};
+use itertools::join;
+use variant_sudoku::{
+    board::{
+        digit::{Digit, Symbol},
+        sudoku::Cell,
+    },
+    Sudoku,
+};
 
 fn main() -> eframe::Result {
     env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
@@ -10,44 +19,61 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "My egui App",
+        "Variant Sudoku",
         options,
         Box::new(|cc| {
             // This gives us image support:
 
-            Ok(Box::<MyApp>::default())
+            Ok(Box::<SudokuApp>::default())
         }),
     )
 }
 
-struct MyApp {
-    name: String,
-    age: u32,
+struct SudokuApp {
+    sudoku: Sudoku,
 }
 
-impl Default for MyApp {
+impl Default for SudokuApp {
     fn default() -> Self {
         Self {
-            name: "Arthur".to_owned(),
-            age: 42,
+            sudoku: Sudoku::empty(),
         }
     }
 }
 
-impl eframe::App for MyApp {
+impl eframe::App for SudokuApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("My egui Application");
-            ui.horizontal(|ui| {
-                let name_label = ui.label("Your name: ");
-                ui.text_edit_singleline(&mut self.name)
-                    .labelled_by(name_label.id);
-            });
-            ui.add(egui::Slider::new(&mut self.age, 0..=120).text("age"));
-            if ui.button("Increment").clicked() {
-                self.age += 1;
-            }
-            ui.label(format!("Hello '{}', age {}", self.name, self.age));
+            ui.heading("Variant Sudoku in Rust");
+            let text_height = egui::TextStyle::Body
+                .resolve(ui.style())
+                .size
+                .max(ui.spacing().interact_size.y);
+
+            egui::Grid::new("sudoku_grid")
+                .spacing([10.0, 4.0])
+                .show(ui, |ui| {
+                    for row in 0..9 {
+                        for col in 0..9 {
+                            let cell = Cell { row, col };
+                            let cell: &mut Digit = self.sudoku.get_cell_mut(&cell).unwrap();
+                            let mut buf = join(cell.0.iter().map(|s| format!("{:#}", s)), " ");
+
+                            if ui.text_edit_singleline(&mut buf).changed() {
+                                if let Ok(n) = buf.parse::<u8>() {
+                                    if n >= 1 && n <= 9 {
+                                        *cell = Digit(vec![Symbol::from_num(n)]);
+                                    } else {
+                                        *cell = Digit(vec![]);
+                                    }
+                                } else {
+                                    *cell = Digit(vec![]);
+                                }
+                            }
+                        }
+                        ui.end_row();
+                    }
+                });
         });
     }
 }

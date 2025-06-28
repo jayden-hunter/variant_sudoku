@@ -1,5 +1,5 @@
 pub mod constraints;
-mod digit;
+pub mod digit;
 mod parsing;
 pub mod solution;
 mod solver;
