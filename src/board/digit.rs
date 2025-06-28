@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 pub type Candidates = Vec<Symbol>;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Digit(pub(crate) Candidates);
+pub struct Digit(pub Candidates);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Symbol(pub char);
@@ -60,6 +60,12 @@ impl Digit {
 impl Display for Digit {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.get_char())
+    }
+}
+
+impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
