@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use itertools::Itertools;
-use log::debug;
+use log::{debug, trace};
 
 use crate::{
     board::{
@@ -95,7 +95,6 @@ fn locked_candidate_houses(
     house1: &House,
     house2: &House,
 ) -> Result<DidUpdateGrid, SudokuError> {
-    let mut did_update = false;
     let candidates1 = get_house_candidates(sudoku, house1)?;
     for symbol in candidates1 {
         let h1_candidate_cells = get_cells_in_house(sudoku, house1, &symbol)?;
@@ -110,10 +109,13 @@ fn locked_candidate_houses(
             .iter()
             .filter(|c| !h1_candidate_cells.contains(c))
         {
-            did_update |= sudoku.remove_candidate(cell, &symbol)?;
+            let did_update = sudoku.remove_candidate(cell, &symbol)?;
+            if did_update {
+                return Ok(true);
+            }
         }
     }
-    Ok(did_update)
+    Ok(false)
 }
 
 pub(crate) fn hidden_subset(
@@ -152,11 +154,11 @@ fn hidden_subset_house(
     house: &House,
     num: usize,
 ) -> Result<DidUpdateGrid, SudokuError> {
-    let mut did_update = false;
+    let did_update = false;
     let candidates = get_house_candidates(sudoku, house)?;
     let combinations = candidates.iter().combinations(num);
     for combo in combinations {
-        debug!("Attempting Combo {combo:?}");
+        trace!("Attempting Combo {combo:?}");
         // Check that the combo exist in the same `num` cells
         let found_cells_vec = combo
             .iter()
@@ -169,10 +171,10 @@ fn hidden_subset_house(
         }
         // Found a match - we can remove all other candidates from these cells.
         debug!("Found a Subset!");
-        for cell in found_cells.into_iter() {
-            let combo_symbols: Vec<Symbol> = combo.iter().copied().cloned().collect();
-            did_update |= sudoku.keep_candidates(&cell, &combo_symbols)?;
-        }
+        let combo_symbols: Vec<Symbol> = combo.into_iter()
+            .map(|s| s.clone())
+            .collect();
+        sudoku.keep_candidates(found_cells, &combo_symbols)?;
         debug!("Subset did_update {did_update}");
         if did_update {
             return Ok(true);

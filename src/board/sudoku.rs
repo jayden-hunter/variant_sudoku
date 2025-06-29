@@ -1,9 +1,12 @@
 use grid::Grid;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 
 use crate::{
     board::{
-        constraints::{standard::get_box_size, RcConstraint},
+        constraints::{
+            standard::{get_box_size, HouseSet, HouseUnique},
+            RcConstraint,
+        },
         digit::{Candidates, Digit, Symbol},
         solution::{Solution, SolutionString},
     },
@@ -28,7 +31,7 @@ type Constraints = Vec<RcConstraint>;
 #[derive(Clone)]
 pub struct Sudoku {
     board: Board,
-    valid_symbols: HashSet<Symbol>,
+    pub(crate) valid_symbols: HashSet<Symbol>,
     pub(crate) constraints: Constraints,
 }
 
@@ -42,21 +45,34 @@ impl Sudoku {
         }
     }
 
-    pub fn solve(&mut self) -> Solution {
+    pub fn solve(&mut self) -> Result<Solution, SudokuError> {
         loop {
+            debug!("Sudoku after iteration: {:?}", self.to_string_line());
+            if self.is_solved() {
+                return Ok(Solution::UniqueSolution(self.clone()));
+            }
+            if self.is_unsolveable() {
+                debug!(
+                    "Unsolveable, here is sudoku at end: {:?}",
+                    self.to_string_line()
+                );
+                return Ok(Solution::NoSolution);
+            }
             let mut did_update = false;
             for constraint in self.constraints.clone() {
-                did_update |= constraint.use_strategies(self).unwrap();
-                if self.is_solved() {
-                    return Solution::UniqueSolution(self.clone());
-                }
-                if self.is_unsolveable() {
-                    return Solution::NoSolution;
+                did_update |= constraint.use_strategies(self)?;
+                if did_update {
+                    break;
                 }
             }
             if !did_update {
-                return Solution::NoSolution;
+                debug!(
+                "No Updates this round, here is sudoku at end: {:?}",
+                self.to_string_line()
+            );
+            return Ok(Solution::NoSolution);
             }
+
         }
     }
 
@@ -98,7 +114,7 @@ impl Sudoku {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn indexed_candidate_iter(&self) -> impl Iterator<Item = (Cell, &Candidates)> {
+    pub(crate) fn indexed_candidates(&self) -> Vec<(Cell, &Candidates)> {
         self.board
             .indexed_iter()
             .map(|(cell, digit)| {
@@ -111,6 +127,7 @@ impl Sudoku {
                 )
             })
             .filter_map(|(c, d)| d.try_get_candidates().map(|v| (c, v)))
+            .collect()
     }
 
     pub fn to_string_line(&self) -> SolutionString {
@@ -186,8 +203,12 @@ impl Sudoku {
         cell: &Cell,
         symbol_to_remove: &Symbol,
     ) -> Result<DidUpdateGrid, SudokuError> {
-        trace!("Removing {symbol_to_remove:?} from {cell:?}");
+        debug!("Removing {symbol_to_remove:#} from {cell:?}");
         let cell_mut = self.get_cell_mut(cell)?;
+        // if cell_mut.0.len() == 1 {
+        //     warn!("Cannot remove {symbol_to_remove:#} from {cell:?}, it is already solved with {cell_mut:?}");
+        //     return Ok(false);
+        // }
         if !cell_mut.0.contains(symbol_to_remove) {
             return Ok(false);
         }
@@ -197,31 +218,48 @@ impl Sudoku {
             "Candidates left after removal: {candidates_left:?}, Entropy is now {:.2}",
             self.get_entropy()
         );
+        if candidates_left.is_empty() {
+            warn!("No candidates left in {cell:?}, this is unsolveable");
+            return Ok(true);
+        }
+        
         self.notify(cell)?;
         Ok(true)
     }
 
     // Keeps the candidate as an option from that cell (similar to an intersection)
-    pub fn keep_candidates(
-        &mut self,
-        cell: &Cell,
-        symbols_to_keep: &Candidates,
-    ) -> Result<DidUpdateGrid, SudokuError> {
-        let cell_mut = self.get_cell_mut(cell)?;
-        let before = cell_mut.clone();
-        debug!("Keeping Only {symbols_to_keep:?} from {cell:?}. Before {before:?}");
-        cell_mut.0.retain(|f| symbols_to_keep.contains(f));
-        if before == *cell_mut {
-            return Ok(false);
+    pub fn keep_candidates<I>(&mut self, cells: I, symbols_to_keep: &Candidates) -> Result<DidUpdateGrid, SudokuError>
+    where
+        I: IntoIterator<Item = Cell> + Clone,
+    {
+        let mut did_update = false;
+        let mut needs_notification = vec![];
+        for cell in cells.clone() {
+            let cell_mut = self.get_cell_mut(&cell)?;
+            let before = cell_mut.clone();
+            debug!("Keeping Only {symbols_to_keep:?} from {cell:?}. Before {before:?}");
+            cell_mut.0.retain(|f| symbols_to_keep.contains(f));
+            if before != *cell_mut {
+                did_update = true;
+                needs_notification.push(cell);
+            }
         }
-        self.notify(cell)?;
-        Ok(true)
+        debug!(
+            "Candidates left after keeping: {:?}, Entropy is now {:.2}. Did update: {}",
+            symbols_to_keep,
+            self.get_entropy(),
+            did_update
+        );
+        for cell in needs_notification {
+            did_update |= self.notify(&cell)?;
+        }
+        Ok(did_update)
     }
 
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
         let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
-            did_update |= constraint.notify_update(self, cell)?;
+             did_update |= constraint.notify_update(self, cell)?;
         }
         Ok(did_update)
     }
@@ -236,6 +274,16 @@ impl Sudoku {
             candidate_count += d.0.len() - 1;
         }
         candidate_count as f64 / maximum as f64
+    }
+
+    /// Returns an empty vector if the sudoku has no regions.
+    #[allow(dead_code)]
+    pub(crate) fn get_houses(&self) -> HouseSet {
+        self.constraints
+            .iter()
+            .filter_map(|c| c.as_any().downcast_ref::<HouseUnique>())
+            .flat_map(|house| house.get_houses(self))
+            .collect()
     }
 }
 

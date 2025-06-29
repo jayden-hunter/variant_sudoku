@@ -5,13 +5,12 @@ pub type Candidates = Vec<Symbol>;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Digit(pub Candidates);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
 pub struct Symbol(pub char);
 
 impl Symbol {
-    #[allow(dead_code)]
-    pub fn get_number(&self) -> Option<u8> {
-        self.0.to_digit(10).map(|c| c as u8)
+    pub fn get_number(&self) -> Option<u32> {
+        self.0.to_digit(10)
     }
 
     #[allow(dead_code)]
@@ -64,6 +63,12 @@ impl Display for Digit {
 }
 
 impl Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Debug for Symbol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }

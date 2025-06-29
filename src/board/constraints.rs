@@ -1,3 +1,4 @@
+pub(crate) mod killer;
 pub(crate) mod standard;
 
 use std::{any::Any, rc::Rc};

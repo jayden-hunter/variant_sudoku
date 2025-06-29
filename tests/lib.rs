@@ -4,7 +4,7 @@ use serde::Deserialize;
 use variant_sudoku::{Solution, Sudoku};
 
 fn test_game(game: &mut Sudoku, expected_solution: Solution) {
-    let actual = game.solve();
+    let actual = game.solve().expect("Sudoku should not error");
     match (actual, expected_solution) {
         (Solution::UniqueSolution(actual_board), Solution::PreComputed(expected_board)) => {
             assert_eq!(
@@ -93,6 +93,7 @@ mod tests {
     sudoku_test!(test_hard_standard, SKIP);
     sudoku_test!(test_4x4_standard);
     sudoku_test!(test_6x6_standard);
+    sudoku_test!(test_easy_killer);
     sudoku_test!(test_unsolveable_standard);
     sudoku_test!(test_unsolveable_variants, SKIP);
 }

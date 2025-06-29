@@ -84,7 +84,7 @@ impl eframe::App for SudokuApp {
                 }
 
                 if ui.button("Solve").clicked() {
-                    self.sudoku.solve();
+                    self.sudoku.solve().unwrap();
                 }
         });
     }

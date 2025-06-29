@@ -8,6 +8,6 @@ pub enum SudokuError {
     #[error("Constraint {0} not Supported by this library")]
     UnsupportedConstraint(String),
 
-    #[error("Constraint cannot be satisfied: {0:?} breaks a constraint")]
-    ConstraintPredicateInvalid(Cell),
+    #[error("Constraint Predicate Invalid: {0}")]
+    ConstraintPredicateInvalid(String),
 }
