@@ -10,4 +10,7 @@ pub enum SudokuError {
 
     #[error("Constraint Predicate Invalid: {0}")]
     ConstraintPredicateInvalid(String),
+
+    #[error("Invalid Board")]
+    InvalidBoard,
 }

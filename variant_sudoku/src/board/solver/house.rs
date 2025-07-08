@@ -154,7 +154,7 @@ fn hidden_subset_house(
     house: &House,
     num: usize,
 ) -> Result<DidUpdateGrid, SudokuError> {
-    let did_update = false;
+    
     let candidates = get_house_candidates(sudoku, house)?;
     let combinations = candidates.iter().combinations(num);
     for combo in combinations {
@@ -174,11 +174,11 @@ fn hidden_subset_house(
         let combo_symbols: Vec<Symbol> = combo.into_iter()
             .map(|s| s.clone())
             .collect();
-        sudoku.keep_candidates(found_cells, &combo_symbols)?;
+        let did_update = sudoku.keep_candidates(found_cells, &combo_symbols)?;
         debug!("Subset did_update {did_update}");
         if did_update {
             return Ok(true);
         }
     }
-    Ok(did_update)
+    Ok(false)
 }

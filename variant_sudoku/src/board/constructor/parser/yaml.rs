@@ -1,12 +1,10 @@
-use std::rc::Rc;
 
 use grid::Grid;
 use serde::Deserialize;
 
 use crate::board::{
-    constraints::{standard::HouseUnique, RcConstraint},
     digit::Symbol,
-    parser::killer::YamlKillerCage,
+    constructor::parser::killer::YamlKillerCage,
     sudoku::Cell,
 };
 
@@ -59,12 +57,13 @@ impl YamlSudoku {
         let cols = cells.len().isqrt();
         Grid::from_vec(cells, cols)
     }
+    
+    pub(super) fn rows(&self) -> usize {
+        self.board.lines().count()
+    }
+
+    pub(super) fn cols(&self) -> usize {
+        self.board.lines().next().map_or(0, |row| row.chars().count())
+    }
 }
 
-pub(super) fn new_standard_constraints() -> Vec<RcConstraint> {
-    vec![
-        Rc::new(HouseUnique::Row),
-        Rc::new(HouseUnique::Col),
-        Rc::new(HouseUnique::Box),
-    ]
-}

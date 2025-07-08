@@ -1,22 +1,14 @@
 use grid::Grid;
 use log::{debug, trace, warn};
 
-use crate::{
-    board::{
-        constraints::{
-            standard::{get_box_size, HouseSet, HouseUnique},
-            RcConstraint,
-        },
-        digit::{Candidates, Digit, Symbol},
-        solution::{Solution, SolutionString},
-    },
-    errors::SudokuError,
-};
-use std::{
-    collections::HashSet,
-    fmt::{self, Debug, Display},
-    rc::Rc,
-};
+use crate::board::constraints::standard::{get_box_size, HouseSet};
+use crate::board::constraints::RcConstraint;
+use crate::board::digit::{Candidates, Digit, Symbol};
+use crate::board::solution::{Solution, SolutionString};
+use crate::errors::SudokuError;
+use std::collections::HashSet;
+use std::fmt::{self, Debug, Display};
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Cell {
@@ -25,12 +17,15 @@ pub struct Cell {
 }
 
 pub(crate) type DidUpdateGrid = bool;
-type Board = Grid<Digit>;
-type Constraints = Vec<RcConstraint>;
+pub(crate) type Board = Grid<Digit>;
+pub(crate) type Constraints = Vec<RcConstraint>;
 
 #[derive(Clone)]
 pub struct Sudoku {
-    board: Board,
+    pub(super) board: Board,
+    // Houses could be contained within a constraint, but since they are interacted with by so
+    // many constraints, it makes sense to keep them here.
+    pub(super) houses: HouseSet,
     pub(crate) valid_symbols: HashSet<Symbol>,
     pub(crate) constraints: Constraints,
 }
@@ -39,15 +34,16 @@ impl Sudoku {
     pub fn empty() -> Self {
         let digit = Digit(vec![Symbol('0')]);
         Sudoku {
-            board: Grid::init(9, 9, digit),
+            board: Board::init(9, 9, digit),
+            houses: HouseSet::new(),
             valid_symbols: HashSet::new(),
-            constraints: Vec::new(),
+            constraints: Constraints::new(),
         }
     }
 
     pub fn solve(&mut self) -> Result<Solution, SudokuError> {
         loop {
-            debug!("Sudoku after iteration: {:?}", self.to_string_line());
+            debug!("Sudoku after iteration: {:?}", self.to_string_line());  
             if self.is_solved() {
                 return Ok(Solution::UniqueSolution(self.clone()));
             }
@@ -58,22 +54,25 @@ impl Sudoku {
                 );
                 return Ok(Solution::NoSolution);
             }
-            let mut did_update = false;
-            for constraint in self.constraints.clone() {
-                did_update |= constraint.use_strategies(self)?;
-                if did_update {
-                    break;
-                }
-            }
+            let did_update = self.solve_one_step()?;
             if !did_update {
                 debug!(
-                "No Updates this round, here is sudoku at end: {:?}",
-                self.to_string_line()
-            );
-            return Ok(Solution::NoSolution);
+                    "No Updates this round, here is sudoku at end: {:?}",
+                    self.to_string_line()
+                );
+                return Ok(Solution::NoSolution);
             }
-
         }
+    }
+
+    fn solve_one_step(&mut self) -> Result<bool, SudokuError> {     
+        for constraint in self.constraints.clone() {
+            let did_update = constraint.use_strategies(self)?;
+            if did_update {
+                return Ok(true);
+            }
+        }
+        return Ok(false);
     }
 
     pub fn is_solved(&self) -> bool {
@@ -134,49 +133,6 @@ impl Sudoku {
         SolutionString(self.board.iter().map(Digit::get_char).collect())
     }
 
-    pub(crate) fn new(givens: Grid<Option<Symbol>>, constraints: Constraints) -> Self {
-        let distinct_symbols = givens.rows().max(givens.cols());
-        let mut valid_symbols: HashSet<Symbol> = givens.iter().filter_map(|f| *f).collect();
-        let remaining_options = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-            .chars()
-            .map(Symbol);
-        for i in remaining_options {
-            if valid_symbols.len() == distinct_symbols {
-                break;
-            }
-            valid_symbols.insert(i);
-        }
-        Self::new_with_valid_digits(givens, constraints, valid_symbols)
-    }
-
-    pub(crate) fn new_with_valid_digits(
-        givens: Grid<Option<Symbol>>,
-        constraints: Constraints,
-        valid_symbols: HashSet<Symbol>,
-    ) -> Self {
-        debug!("Givens {givens:?}");
-        let (rows, cols) = givens.size();
-        let all_symbols_digit = Digit(valid_symbols.iter().cloned().collect());
-        let board = Grid::init(rows, cols, all_symbols_digit);
-        let mut sudoku = Sudoku {
-            board,
-            valid_symbols,
-            constraints,
-        };
-        debug!(
-            "New Sudoku created, with size {:?}, and valid symbols: {:?}",
-            sudoku.size(),
-            sudoku.valid_symbols
-        );
-        for (cell, symbol) in givens
-            .indexed_iter()
-            .filter_map(|(c, f)| f.as_ref().map(|v| (Cell { row: c.0, col: c.1 }, v)))
-        {
-            sudoku.place_digit(&cell, symbol).unwrap();
-        }
-        sudoku
-    }
-
     /// Makes the Symbol the only one in that cell.
     pub fn place_digit(
         &mut self,
@@ -222,13 +178,17 @@ impl Sudoku {
             warn!("No candidates left in {cell:?}, this is unsolveable");
             return Ok(true);
         }
-        
+
         self.notify(cell)?;
         Ok(true)
     }
 
     // Keeps the candidate as an option from that cell (similar to an intersection)
-    pub fn keep_candidates<I>(&mut self, cells: I, symbols_to_keep: &Candidates) -> Result<DidUpdateGrid, SudokuError>
+    pub fn keep_candidates<I>(
+        &mut self,
+        cells: I,
+        symbols_to_keep: &Candidates,
+    ) -> Result<DidUpdateGrid, SudokuError>
     where
         I: IntoIterator<Item = Cell> + Clone,
     {
@@ -259,7 +219,7 @@ impl Sudoku {
     pub(crate) fn notify(&mut self, cell: &Cell) -> Result<DidUpdateGrid, SudokuError> {
         let mut did_update = false;
         for constraint in self.constraints.clone().iter() {
-             did_update |= constraint.notify_update(self, cell)?;
+            did_update |= constraint.notify_update(self, cell)?;
         }
         Ok(did_update)
     }
@@ -275,16 +235,6 @@ impl Sudoku {
         }
         candidate_count as f64 / maximum as f64
     }
-
-    /// Returns an empty vector if the sudoku has no regions.
-    #[allow(dead_code)]
-    pub(crate) fn get_houses(&self) -> HouseSet {
-        self.constraints
-            .iter()
-            .filter_map(|c| c.as_any().downcast_ref::<HouseUnique>())
-            .flat_map(|house| house.get_houses(self))
-            .collect()
-    }
 }
 
 impl Display for Sudoku {
@@ -294,7 +244,7 @@ impl Display for Sudoku {
             return Ok(());
         }
         let (board_rows, board_cols) = self.size();
-        let (box_height, box_width) = get_box_size((board_rows, board_cols)).unwrap();
+        let (box_height, box_width) = get_box_size(board_rows, board_cols).unwrap();
 
         for (i, row) in self.board.iter_rows().enumerate() {
             if i % box_height == 0 && i != 0 {

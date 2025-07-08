@@ -12,24 +12,28 @@ use crate::{
     Constraint, Sudoku,
 };
 
+pub(crate) type House = Vec<Cell>;
 pub(crate) type HouseSet = HashSet<House>;
 
+// Actual houses are stored in the Sudoku for easy access for other constraints.
+pub struct HouseUnique;
+
 #[allow(dead_code)]
-pub(crate) enum HouseUnique {
+pub(crate) enum Division {
     Row,
     Col,
     Box,
     Custom(Vec<House>),
 }
 
-pub(crate) type House = Vec<Cell>;
-impl HouseUnique {
-    pub(crate) fn get_houses(&self, sudoku: &Sudoku) -> Vec<House> {
+
+impl Division {
+    pub(crate) fn get_houses(&self, rows: usize, cols: usize) -> Vec<House> {
         match self {
-            HouseUnique::Row => get_row_houses(sudoku),
-            HouseUnique::Col => get_col_houses(sudoku),
-            HouseUnique::Box => get_box_houses(sudoku),
-            HouseUnique::Custom(cells) => cells.to_vec(),
+            Division::Row => get_row_houses(rows, cols),
+            Division::Col => get_col_houses(rows, cols),
+            Division::Box => get_box_houses(rows, cols),
+            Division::Custom(cells) => cells.to_vec(),
         }
     }
 }
@@ -37,12 +41,7 @@ impl HouseUnique {
 impl Constraint for HouseUnique {
     fn use_strategies(&self, sudoku: &mut Sudoku) -> Result<DidUpdateGrid, SudokuError> {
         // Get all houses of the sudoku.
-        let houses: HouseSet = sudoku
-            .constraints
-            .iter()
-            .filter_map(|f| f.as_any().downcast_ref::<HouseUnique>())
-            .flat_map(|f| f.get_houses(sudoku))
-            .collect();
+        let houses = sudoku.houses.clone();
         for (strategy, _) in HOUSE_STRATEGIES {
             let did_update = strategy(sudoku, &houses)?;
             if did_update {
@@ -69,7 +68,7 @@ impl Constraint for HouseUnique {
             Some(s) => s,
             None => return Ok(false),
         };
-        let houses = self.get_houses(sudoku);
+        let houses = sudoku.houses.clone();
         let cells = houses
             .iter()
             .filter(|c| c.contains(cell))
@@ -82,22 +81,20 @@ impl Constraint for HouseUnique {
     }
 }
 
-fn get_row_houses(sudoku: &Sudoku) -> Vec<House> {
-    let (rows, cols) = sudoku.size();
+fn get_row_houses(rows: usize, cols: usize) -> Vec<House> {
     (0..cols)
         .map(|row| (0..rows).map(|col| Cell { row, col }).collect())
         .collect()
 }
 
-fn get_col_houses(sudoku: &Sudoku) -> Vec<House> {
-    let (rows, cols) = sudoku.size();
+fn get_col_houses(rows: usize, cols: usize) -> Vec<House> {
     (0..rows)
         .map(|col| (0..cols).map(|row| Cell { row, col }).collect())
         .collect()
 }
 
-pub(crate) fn get_box_size(size: (usize, usize)) -> Result<(usize, usize), SudokuError> {
-    let ok = match size {
+pub(crate) fn get_box_size(rows: usize, cols: usize) -> Result<(usize, usize), SudokuError> {
+    let ok = match (rows, cols) {
         (9, 9) => (3, 3),
         (4, 4) => (2, 2),
         (6, 6) => (2, 3), //2 rows, 3 cols
@@ -110,10 +107,9 @@ pub(crate) fn get_box_size(size: (usize, usize)) -> Result<(usize, usize), Sudok
     Ok(ok)
 }
 
-fn get_box_houses(sudoku: &Sudoku) -> Vec<House> {
+fn get_box_houses(rows: usize, cols: usize) -> Vec<House> {
     let mut houses = vec![];
-    let (box_row_size, box_col_size) = get_box_size(sudoku.size()).unwrap();
-    let (rows, cols) = sudoku.size();
+    let (box_row_size, box_col_size) = get_box_size(rows, cols).unwrap();
     let num_box_rows = rows / box_row_size;
     let num_box_cols = cols / box_col_size;
     for box_row in 0..num_box_rows {
